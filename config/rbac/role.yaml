@@ -1,15 +1,58 @@
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    app.kubernetes.io/name: clusterrole
-    app.kubernetes.io/instance: manager-role
-    app.kubernetes.io/component: rbac
-    app.kubernetes.io/created-by: cluster-api-provider-vultr
-    app.kubernetes.io/part-of: cluster-api-provider-vultr
-    app.kubernetes.io/managed-by: kustomize
   name: manager-role
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - infra.cluster.x-k8s.io
+  resources:
+  - vultrclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infra.cluster.x-k8s.io
+  resources:
+  - vultrclusters/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infra.cluster.x-k8s.io
+  resources:
+  - vultrclusters/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infra.cluster.x-k8s.io
+  resources:
+  - vultrmachines
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infra.cluster.x-k8s.io
+  resources:
+  - vultrmachines/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - infra.cluster.x-k8s.io
+  resources:
+  - vultrmachines/status
+  verbs:
+  - get
+  - patch
+  - update

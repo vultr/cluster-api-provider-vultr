@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- infra_v1_vultrcluster.yaml
+- infra_v1_vultrmachine.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples

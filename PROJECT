@@ -7,4 +7,23 @@ layout:
 - go.kubebuilder.io/v4
 projectName: cluster-api-provider-vultr
 repo: github.com/mondragonfx/cluster-api-provider-vultr
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: infra
+  kind: VultrCluster
+  path: github.com/mondragonfx/cluster-api-provider-vultr/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: cluster.x-k8s.io
+  group: infra
+  kind: VultrMachine
+  path: github.com/mondragonfx/cluster-api-provider-vultr/api/v1
+  version: v1
 version: "3"
