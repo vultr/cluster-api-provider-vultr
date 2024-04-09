@@ -30,7 +30,7 @@ type VultrClusterSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of VultrCluster. Edit vultrcluster_types.go to remove/update
-    // The Vultr Region (DCID) the cluster lives on 
+	// The Vultr Region (DCID) the cluster lives on
 	Region string `json:"region"`
 
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the

@@ -29,7 +29,7 @@ type VultrMachineSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
-    // ProviderID is the unique identifer as specified by the cloud provider.
+	// ProviderID is the unique identifer as specified by the cloud provider.
 	ProviderID *string `json:"providerID,omitempty"`
 
 	//The ID of the operating system to be installed
