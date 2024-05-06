@@ -1,0 +1,12 @@
+apiVersion: infra.cluster.x-k8s.io/v1
+kind: VultrMachineTemplate
+metadata:
+  labels:
+    app.kubernetes.io/name: vultrmachinetemplate
+    app.kubernetes.io/instance: vultrmachinetemplate-sample
+    app.kubernetes.io/part-of: cluster-api-provider-vultr
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-api-provider-vultr
+  name: vultrmachinetemplate-sample
+spec:
+  # TODO(user): Add fields here
