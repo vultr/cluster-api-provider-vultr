@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	infrav1 "github.com/mondragonfx/cluster-api-provider-vultr/api/v1"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
 )
 
 var _ = Describe("VultrCluster Controller", func() {

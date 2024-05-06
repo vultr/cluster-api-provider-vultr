@@ -15,18 +15,6 @@ limitations under the License.
 
 package v1
 
-// APIEndpoint represents control-plane's apiserver endpoints.
-type APIEndpoint struct {
-	// ID is the id of Vultr reserved IP (SUBID).
-	ID string `json:"SUBID,string"`
-
-	// The hostname on which the API server is serving.
-	Host string `json:"host"`
-
-	// The port on which the API server is serving.
-	Port int `json:"port"`
-}
-
 // ServerStatus represents the status of subscription.
 type SubscriptionStatus string
 
