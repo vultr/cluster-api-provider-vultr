@@ -148,17 +148,10 @@ spec:
                   can be added as events to the Machine object and/or logged in the
                   controller's output.
                 type: string
-              powerStatus:
-                description: PowerStatus represents whether the server is powered
-                  on or not.
-                type: string
               ready:
                 description: Ready represents the infrastructure is ready to be used
                   or not.
                 type: boolean
-              serverState:
-                description: ServerState represents a more detailed server status.
-                type: string
               subscriptionStatus:
                 description: ServerStatus represents the status of subscription.
                 type: string

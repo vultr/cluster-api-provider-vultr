@@ -61,12 +61,6 @@ type VultrMachineStatus struct {
 	// ServerStatus represents the status of subscription.
 	SubscriptionStatus *SubscriptionStatus `json:"subscriptionStatus,omitempty"`
 
-	// PowerStatus represents whether the server is powered on or not.
-	PowerStatus *PowerStatus `json:"powerStatus,omitempty"`
-
-	// ServerState represents a more detailed server status.
-	ServerState *ServerState `json:"serverState,omitempty"`
-
 	// FailureReason will be set in the event that there is a terminal problem
 	// reconciling the Machine and will contain a succinct value suitable
 	// for machine interpretation.

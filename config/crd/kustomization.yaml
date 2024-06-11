@@ -7,8 +7,8 @@ resources:
 - bases/infra.cluster.x-k8s.io_vultrclustertemplates.yaml
 - bases/infra.cluster.x-k8s.io_vultrmachinetemplates.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
-
-patches:
+ 
+#patches:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
 #- path: patches/webhook_in_vultrclusters.yaml

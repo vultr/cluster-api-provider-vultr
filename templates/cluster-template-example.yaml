@@ -1,0 +1,28 @@
+---
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: vke-capi-test
+  namespace: default
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 10.244.0.0/16
+  infrastructureRef:
+    apiVersion: infra.cluster.x-k8s.io/v1
+    kind: VultrCluster
+    name: vke-capi-test
+
+
+---
+apiVersion: infra.cluster.x-k8s.io/v1
+kind: VultrCluster
+metadata:
+  name: vke-capi-test
+  namespace: default
+spec:
+  controlPlaneEndpoint:
+    host: 149.28.51.199
+    port: 6443
+  region: "ewr"
