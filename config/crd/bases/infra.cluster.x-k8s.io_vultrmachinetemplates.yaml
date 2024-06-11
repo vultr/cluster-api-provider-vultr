@@ -40,17 +40,40 @@ spec:
           spec:
             description: VultrMachineTemplateSpec defines the desired state of VultrMachineTemplate
             properties:
-              foo:
-                description: Foo is an example field of VultrMachineTemplate. Edit
-                  vultrmachinetemplate_types.go to remove/update
-                type: string
-            type: object
-          status:
-            description: VultrMachineTemplateStatus defines the observed state of
-              VultrMachineTemplate
+              template:
+                description: |-
+                  INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                properties:
+                  spec:
+                    description: Spec is the specification of the desired behavior
+                      of the machine.
+                    properties:
+                      osID:
+                        description: The ID of the operating system to be installed
+                        type: integer
+                      planID:
+                        description: PlanID is the id of Vultr VPS plan (VPSPLANID).
+                        type: string
+                      providerID:
+                        description: |-
+                          Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
+                          ProviderID is the unique identifer as specified by the cloud provider.
+                        type: string
+                      scriptID:
+                        description: ScriptID is the id of Startup Script (SCRIPTID).
+                        type: integer
+                      sshKeyName:
+                        description: SSHKeyName is the name of the ssh key to attach
+                          to the instance.
+                        type: string
+                    type: object
+                required:
+                - spec
+                type: object
+            required:
+            - template
             type: object
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}

@@ -44,7 +44,7 @@ spec:
                 type: integer
               planID:
                 description: PlanID is the id of Vultr VPS plan (VPSPLANID).
-                type: integer
+                type: string
               providerID:
                 description: |-
                   Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update

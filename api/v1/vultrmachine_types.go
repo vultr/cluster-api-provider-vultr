@@ -41,7 +41,7 @@ type VultrMachineSpec struct {
 	OSID int `json:"osID,omitempty"`
 
 	// PlanID is the id of Vultr VPS plan (VPSPLANID).
-	PlanID int `json:"planID,omitempty"`
+	PlanID string `json:"planID,omitempty"`
 
 	// SSHKeyName is the name of the ssh key to attach to the instance.
 	SSHKeyName string `json:"sshKeyName,omitempty"`

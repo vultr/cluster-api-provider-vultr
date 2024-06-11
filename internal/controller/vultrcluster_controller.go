@@ -163,7 +163,7 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 func (r *VultrClusterReconciler) reconcile(ctx context.Context, clusterScope *scope.ClusterScope, logger logr.Logger) (res ctrl.Result, reterr error) {
 	clusterScope.Info("Reconciling VultrCluster")
-    res = ctrl.Result{}
+	res = ctrl.Result{}
 
 	// Always close the scope when exiting this function so we can persist any changes.
 	defer func() {

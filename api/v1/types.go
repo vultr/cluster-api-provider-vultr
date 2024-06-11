@@ -101,3 +101,9 @@ type LBFirewallRule struct {
 	IPType string `json:"ip_type,omitempty"`
 	Source string `json:"source,omitempty"`
 }
+
+// VultrMachineTemplateResource describes the data needed to create a VultrMachine from a template.
+type VultrMachineTemplateResource struct {
+	// Spec is the specification of the desired behavior of the machine.
+	Spec VultrMachineSpec `json:"spec"`
+}
