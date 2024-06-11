@@ -76,6 +76,10 @@ func (s *ClusterScope) PatchObject(ctx context.Context) error {
 	return s.patchHelper.Patch(ctx, s.VultrCluster)
 }
 
+func (s *ClusterScope) Close() error {
+	return s.patchHelper.Patch(context.TODO(), s.VultrCluster)
+}
+
 func (s *ClusterScope) AddFinalizer(ctx context.Context) error {
 	if controllerutil.AddFinalizer(s.VultrCluster, infrav1.GroupVersion.String()) {
 		return s.Close()
@@ -84,6 +88,15 @@ func (s *ClusterScope) AddFinalizer(ctx context.Context) error {
 	return nil
 }
 
-func (s *ClusterScope) Close() error {
-	return s.patchHelper.Patch(context.TODO(), s.VultrCluster)
+// APIServerLoadbalancers get the VultrCluster Spec Network APIServerLoadbalancers.
+func (s *ClusterScope) APIServerLoadbalancers() *infrav1.VultrLoadBalancer {
+	return &s.VultrCluster.Spec.Network.APIServerLoadbalancers
+}
+
+func (s *ClusterScope) AddCredentialsRefFinalizer(ctx context.Context) error {
+	if s.VultrCluster.Spec.CredentialsRef == nil {
+		return nil
+	}
+
+	return addCredentialsFinalizer(ctx, s.VultrAPIClients, *s.VultrCluster.Spec.CredentialsRef, s.VultrCluster.GetNamespace(), toFinalizer(s.VultrCluster))
 }

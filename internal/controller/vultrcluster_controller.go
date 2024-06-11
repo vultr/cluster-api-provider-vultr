@@ -24,19 +24,27 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	"sigs.k8s.io/cluster-api/util"
+	cerrs "sigs.k8s.io/cluster-api/errors"
+	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/conditions"
+	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/util"
+	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
 )
 
 // VultrClusterReconciler reconciles a VultrCluster object
@@ -46,6 +54,35 @@ type VultrClusterReconciler struct {
 	ReconcileTimeout time.Duration
 	Recorder         record.EventRecorder
 	VultrApiKey      string
+	WatchFilterValue string
+}
+
+// // SetupWithManager sets up the controller with the Manager.
+// func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// 	return ctrl.NewControllerManagedBy(mgr).
+// 		For(&infrav1.VultrCluster{}).
+// 		Complete(r)
+// }
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	gvk := infrav1.GroupVersion.WithKind("VultrCluster")
+
+	err := ctrl.NewControllerManagedBy(mgr).
+		For(&infrav1.VultrCluster{}).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
+		Watches(
+			&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(
+				clusterutil.ClusterToInfrastructureMapFunc(context.TODO(), gvk, mgr.GetClient(), &infrav1.VultrCluster{}),
+			),
+			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
+		).Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build controller: %w", err)
+	}
+
+	return nil
 }
 
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
@@ -62,10 +99,11 @@ type VultrClusterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
-	// ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
-	// defer cancel()
+	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
+	defer cancel()
 
 	log := ctrl.LoggerFrom(ctx)
+	logger := ctrl.LoggerFrom(ctx).WithName("VultrClusterReconciler").WithValues("name", req.NamespacedName.String())
 
 	// Fetch the VultrCluster.
 	vultrCluster := &infrav1.VultrCluster{}
@@ -80,18 +118,18 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Fetch the Cluster.
-	cluster, err := util.GetOwnerCluster(ctx, r.Client, vultrCluster.ObjectMeta)
+	cluster, err := clusterutil.GetOwnerCluster(ctx, r.Client, vultrCluster.ObjectMeta)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("failed to get owner cluster: %w", err)
 	}
 	if cluster == nil {
-		log.Info("Cluster Controller has not yet set OwnerRef")
-		return reconcile.Result{}, nil
+		logger.Info("Cluster Controller has not yet set OwnerRef", "OwnerReferences", vultrCluster.OwnerReferences)
+		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
 	// Return early if the object or Cluster is paused.
 	if annotations.IsPaused(cluster, vultrCluster) {
 		log.Info("VultrCluster or linked Cluster is marked as paused. Won't reconcile")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	// Create the cluster scope.
@@ -105,32 +143,52 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, errors.Errorf("failed to create scope: %v", err)
 	}
 
+	// Always close the scope when exiting this function so we can persist any VultrMachine changes.
+	defer func() {
+		if err := clusterScope.Close(); err != nil && reterr == nil {
+			reterr = err
+		}
+	}()
+
+	// Handle deleted clusters
+	if !vultrCluster.DeletionTimestamp.IsZero() {
+		_, err := r.reconcileDelete(ctx, clusterScope)
+		return ctrl.Result{}, err
+	}
+
+	// Handle non-deleted clusters
+	return r.reconcile(ctx, clusterScope, logger)
+
+}
+
+func (r *VultrClusterReconciler) reconcile(ctx context.Context, clusterScope *scope.ClusterScope, logger logr.Logger) (res ctrl.Result, reterr error) {
+	clusterScope.Info("Reconciling VultrCluster")
+    res = ctrl.Result{}
+
 	// Always close the scope when exiting this function so we can persist any changes.
 	defer func() {
 		err := clusterScope.Close()
 		if err != nil && reterr == nil {
+			logger.Error(err, "Failed to Patch VultrCluster")
 			reterr = err
 		}
 	}()
 
 	//Handle deleted clusters
-	if !vultrCluster.DeletionTimestamp.IsZero() {
+	if !clusterScope.VultrCluster.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, clusterScope)
 	}
 
-	// Handle non-deleted clusters
-	return r.reconcile(ctx, clusterScope)
-	//return ctrl.Result{}, nil
+	if err := clusterScope.AddFinalizer(ctx); err != nil {
+		return res, err
+	}
 
-}
-
-func (r *VultrClusterReconciler) reconcile(ctx context.Context, clusterScope *scope.ClusterScope) (res ctrl.Result, reterr error) {
-	res = ctrl.Result{}
-	// process controlplane endpoint
+	// Create
 	if clusterScope.VultrCluster.Spec.ControlPlaneEndpoint.Host == "" {
-
-		//TODO
-
+		if err := r.reconcileCreate(ctx, logger, clusterScope); err != nil {
+			return res, err
+		}
+		r.Recorder.Event(clusterScope.VultrCluster, corev1.EventTypeNormal, string(clusterv1.ReadyCondition), "Load balancer is ready")
 	}
 
 	clusterScope.VultrCluster.Status.Ready = true
@@ -151,9 +209,21 @@ func (r *VultrClusterReconciler) reconcileDelete(ctx context.Context, clusterSco
 	return reconcile.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1.VultrCluster{}).
-		Complete(r)
+func setFailureReason(clusterScope *scope.ClusterScope, failureReason cerrs.ClusterStatusError, err error, vcr *VultrClusterReconciler) {
+	clusterScope.VultrCluster.Status.FailureReason = util.Pointer(failureReason)
+	clusterScope.VultrCluster.Status.FailureMessage = util.Pointer(err.Error())
+
+	conditions.MarkFalse(clusterScope.VultrCluster, clusterv1.ReadyCondition, string(failureReason), clusterv1.ConditionSeverityError, "%s", err.Error())
+
+	vcr.Recorder.Event(clusterScope.VultrCluster, corev1.EventTypeWarning, string(failureReason), err.Error())
+}
+
+func (r *VultrClusterReconciler) reconcileCreate(ctx context.Context, logger logr.Logger, clusterScope *scope.ClusterScope) error {
+	if err := clusterScope.AddCredentialsRefFinalizer(ctx); err != nil {
+		logger.Error(err, "failed to update credentials finalizer")
+		setFailureReason(clusterScope, cerrs.CreateClusterError, err, r)
+		return err
+	}
+
+	return nil
 }
