@@ -107,3 +107,8 @@ type VultrMachineTemplateResource struct {
 	// Spec is the specification of the desired behavior of the machine.
 	Spec VultrMachineSpec `json:"spec"`
 }
+
+// VultrClusterTemplateResource describes the data needed to create a VultrCluster from a template.
+type VultrClusterTemplateResource struct {
+	Spec VultrClusterSpec `json:"spec"`
+}

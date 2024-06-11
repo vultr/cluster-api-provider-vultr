@@ -28,11 +28,10 @@ type VultrMachineTemplateSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	Template VultrMachineTemplateResource `json:"template"`
-
-	// Foo is an example field of VultrMachineTemplate. Edit vultrmachinetemplate_types.go to remove/update
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:path=vultrmachinetemplates,scope=Namespaced,categories=cluster-api,shortName=vmt
 // VultrMachineTemplate is the Schema for the vultrmachinetemplates API
 type VultrMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -41,9 +40,7 @@ type VultrMachineTemplate struct {
 	Spec VultrMachineTemplateSpec `json:"spec,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-// +kubebuilder:resource:path=vultrmachinetemplates,scope=Namespaced,categories=cluster-api
-
+// +kubebuilder:object:root=true
 // VultrMachineTemplateList contains a list of VultrMachineTemplate
 type VultrMachineTemplateList struct {
 	metav1.TypeMeta `json:",inline"`

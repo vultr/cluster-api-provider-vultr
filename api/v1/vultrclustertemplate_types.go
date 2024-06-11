@@ -25,20 +25,11 @@ import (
 
 // VultrClusterTemplateSpec defines the desired state of VultrClusterTemplate
 type VultrClusterTemplateSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of VultrClusterTemplate. Edit vultrclustertemplate_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-}
-
-// VultrClusterTemplateStatus defines the observed state of VultrClusterTemplate
-type VultrClusterTemplateStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Template VultrClusterTemplateResource `json:"template"`
 }
 
 //+kubebuilder:object:root=true
+//+kubebuilder:resource:path=vultrclustertemplates,scope=Namespaced,categories=cluster-api,shortName=vct
 //+kubebuilder:subresource:status
 
 // VultrClusterTemplate is the Schema for the vultrclustertemplates API
@@ -46,8 +37,7 @@ type VultrClusterTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   VultrClusterTemplateSpec   `json:"spec,omitempty"`
-	Status VultrClusterTemplateStatus `json:"status,omitempty"`
+	Spec VultrClusterTemplateSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true

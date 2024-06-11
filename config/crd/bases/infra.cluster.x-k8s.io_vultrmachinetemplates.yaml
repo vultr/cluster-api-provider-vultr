@@ -8,9 +8,13 @@ metadata:
 spec:
   group: infra.cluster.x-k8s.io
   names:
+    categories:
+    - cluster-api
     kind: VultrMachineTemplate
     listKind: VultrMachineTemplateList
     plural: vultrmachinetemplates
+    shortNames:
+    - vmt
     singular: vultrmachinetemplate
   scope: Namespaced
   versions:
