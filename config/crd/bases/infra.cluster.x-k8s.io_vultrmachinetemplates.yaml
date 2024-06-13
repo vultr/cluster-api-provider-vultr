@@ -53,6 +53,25 @@ spec:
                     description: Spec is the specification of the desired behavior
                       of the machine.
                     properties:
+                      credentialsRef:
+                        description: |-
+                          CredentialsRef is a reference to a Secret that contains the credentials
+                          to use for provisioning this machine. If not supplied then these
+                          credentials will be used in-order:
+                            1. VultrMachine
+                            2. Owner VultrCluster
+                            3. Controller
+                        properties:
+                          name:
+                            description: name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
                       osID:
                         description: The ID of the operating system to be installed
                         type: integer
@@ -64,13 +83,15 @@ spec:
                           Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
                           ProviderID is the unique identifer as specified by the cloud provider.
                         type: string
-                      scriptID:
-                        description: ScriptID is the id of Startup Script (SCRIPTID).
-                        type: integer
+                      region:
+                        description: The Vultr Region (DCID) the cluster lives on
+                        type: string
                       sshKeyName:
                         description: SSHKeyName is the name of the ssh key to attach
                           to the instance.
                         type: string
+                    required:
+                    - region
                     type: object
                 required:
                 - spec

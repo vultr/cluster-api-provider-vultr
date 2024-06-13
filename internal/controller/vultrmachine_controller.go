@@ -18,33 +18,48 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	clusterutil "sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
-	"github.com/labstack/gommon/log"
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
 )
 
 // VultrMachineReconciler reconciles a VultrMachine object
 type VultrMachineReconciler struct {
 	client.Client
-	Scheme      *runtime.Scheme
-	Log         logr.Logger
-	VultrApiKey string
+	Scheme           *runtime.Scheme
+	Log              logr.Logger
+	VultrApiKey      string
+	WatchFilterValue string
+	Recorder         record.EventRecorder
 }
 
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrmachines,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrmachines/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrmachines/finalizers,verbs=update
+
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;watch;list
+// +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;watch;list
+// +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups="",resources=secrets;,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -55,13 +70,6 @@ type VultrMachineReconciler struct {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
-// func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-// 	_ = log.FromContext(ctx)
-
-// 	// TODO(user): your logic here
-
-// 	return ctrl.Result{}, nil
-// }
 
 func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	log := r.Log.WithValues("vultrmachine", req.NamespacedName)
@@ -117,6 +125,18 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// 	return ctrl.Result{}, errors.New("environment variable VULTR_API_KEY is required")
 	// }
 
+	// Create the cluster scope
+	// Create the cluster scope.
+	clusterScope, err := scope.NewClusterScope(ctx, r.VultrApiKey, scope.ClusterScopeParams{
+		Client:       r.Client,
+		Logger:       log,
+		Cluster:      cluster,
+		VultrCluster: vultrCluster,
+	})
+	if err != nil {
+		return ctrl.Result{}, errors.Errorf("failed to create scope: %v", err)
+	}
+
 	// Create the machine scope
 	machineScope, err := scope.NewMachineScope(ctx, r.VultrApiKey, scope.MachineScopeParams{
 		Client:       r.Client,
@@ -138,15 +158,15 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}()
 
 	if !vultrMachine.ObjectMeta.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(machineScope)
+		return r.reconcileDelete(ctx, machineScope, clusterScope)
 	}
 
-	return r.reconcileNormal(ctx, machineScope)
+	return r.reconcileNormal(ctx, machineScope, clusterScope)
 	//return ctrl.Result{}, nil
 
 }
 
-func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineScope *scope.MachineScope) (reconcile.Result, error) {
+func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
 	machineScope.Info("Reconciling VultrMachine")
 	vultrmachine := machineScope.VultrMachine
 
@@ -163,6 +183,29 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		return reconcile.Result{}, nil
 	}
 
+	// Make sure bootstrap data is available and populated.
+	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
+		machineScope.Info("Bootstrap data secret reference is not yet available")
+		return reconcile.Result{}, nil
+	}
+
+	instancesvc := services.NewService(ctx, clusterScope)
+	instance, err := instancesvc.GetInstance(machineScope.GetInstanceID())
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if instance == nil {
+		instance, err = computesvc.Createinstance(machineScope)
+		if err != nil {
+			err = errors.Errorf("Failed to create instance instance for VultrMachine %s/%s: %v", vultrmachine.Namespace, vultrmachine.Name, err)
+			r.Recorder.Event(vultrmachine, corev1.EventTypeWarning, "InstanceCreatingError", err.Error())
+			machineScope.SetInstanceStatus(infrav1.VultrResourceStatusErrored)
+			return reconcile.Result{}, err
+		}
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Name)
+	}
+
 	// Register the finalizer immediately to avoid orphaning Vultr resources on delete.
 	if err := machineScope.PatchObject(ctx); err != nil {
 		return reconcile.Result{}, err
@@ -171,19 +214,96 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	return reconcile.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *VultrMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&infrav1.VultrMachine{}).
-		Complete(r)
-}
-
-func (r *VultrMachineReconciler) reconcileDelete(machineScope *scope.MachineScope) (reconcile.Result, error) {
-	log.Info("Reconciling Machine Delete")
+func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
+	machineScope.Info("Reconciling delete VultrMachine")
 	vultrmachine := machineScope.VultrMachine
 
-	//TODO
+	computesvc := services.NewService(ctx, clusterScope)
+	vc, err := computesvc.GetInstance(machineScope.GetInstanceID())
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
+	if instance != nil {
+		if err := computesvc.DeleteInstance(machineScope.GetInstanceID()); err != nil {
+			return reconcile.Result{}, err
+		}
+	} else {
+		clusterScope.V(2).Info("Unable to locate instance")
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeWarning, "NoInstanceFound", "Skip deleting")
+	}
+
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceDeleted", "Deleted a instance - %s", machineScope.Name())
 	controllerutil.RemoveFinalizer(vultrmachine, infrav1.MachineFinalizer)
 	return reconcile.Result{}, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *VultrMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	vultrMachineMapper, err := clusterutil.ClusterToTypedObjectsMapper(r.Client, &infrav1.VultrMachineList{}, mgr.GetScheme())
+	if err != nil {
+		return fmt.Errorf("failed to create mapper for VultrMachines: %w", err)
+	}
+
+	err = ctrl.NewControllerManagedBy(mgr).
+		For(&infrav1.VultrMachine{}).
+		Watches(
+			&clusterv1.Machine{},
+			handler.EnqueueRequestsFromMapFunc(clusterutil.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind("VultrMachine"))),
+		).
+		Watches(
+			&infrav1.VultrCluster{},
+			handler.EnqueueRequestsFromMapFunc(r.VultrClusterToVultrMachines(mgr.GetLogger())),
+		).
+		Watches(
+			&clusterv1.Cluster{},
+			handler.EnqueueRequestsFromMapFunc(vultrMachineMapper),
+			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
+		).
+		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
+		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build controller: %w", err)
+	}
+
+	return nil
+}
+
+// VultrClusterToVultrMachines convert the cluster to machines spec.
+func (r *VultrMachineReconciler) VultrClusterToVultrMachines(ctx context.Context) handler.MapFunc {
+	log := ctrl.LoggerFrom(ctx)
+	return func(ctx context.Context, o client.Object) []ctrl.Request {
+		result := []ctrl.Request{}
+
+		c, ok := o.(*infrav1.VultrCluster)
+		if !ok {
+			log.Error(errors.Errorf("expected a VultrCluster but got a %T", o), "failed to get VultrMachine for VultrCluster")
+			return nil
+		}
+
+		cluster, err := util.GetOwnerCluster(ctx, r.Client, c.ObjectMeta)
+		switch {
+		case apierrors.IsNotFound(err) || cluster == nil:
+			return result
+		case err != nil:
+			log.Error(err, "failed to get owning cluster")
+			return result
+		}
+
+		labels := map[string]string{clusterv1.ClusterNameLabel: cluster.Name}
+		machineList := &clusterv1.MachineList{}
+		if err := r.List(ctx, machineList, client.InNamespace(c.Namespace), client.MatchingLabels(labels)); err != nil {
+			log.Error(err, "failed to list Machines")
+			return nil
+		}
+		for _, m := range machineList.Items {
+			if m.Spec.InfrastructureRef.Name == "" {
+				continue
+			}
+			name := client.ObjectKey{Namespace: m.Namespace, Name: m.Spec.InfrastructureRef.Name}
+			result = append(result, ctrl.Request{NamespacedName: name})
+		}
+
+		return result
+	}
 }

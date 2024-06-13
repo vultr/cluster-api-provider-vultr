@@ -2,11 +2,11 @@ package scope
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
 	"github.com/vultr/govultr/v3"
-	"golang.org/x/oauth2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
 	"github.com/go-logr/logr"
@@ -40,9 +40,14 @@ func NewClusterScope(ctx context.Context, apiKey string, params ClusterScopePara
 		return nil, errors.New("environment variable VULTR_API_KEY is required")
 	}
 
-	config := &oauth2.Config{}
-	tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
-	vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
+	// config := &oauth2.Config{}
+	// tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
+	// vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
+
+	vultrClient, err := CreateVultrClient(apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Vultr Client: %w", err)
+	}
 
 	helper, err := patch.NewHelper(params.VultrCluster, params.Client)
 	if err != nil {
@@ -50,12 +55,12 @@ func NewClusterScope(ctx context.Context, apiKey string, params ClusterScopePara
 	}
 
 	return &ClusterScope{
-		client:          params.Client,
-		Cluster:         params.Cluster,
-		VultrCluster:    params.VultrCluster,
-		VultrAPIClients: params.VultrAPIClients,
-		patchHelper:     helper,
-		vultrClient:     vultrClient,
+		client:       params.Client,
+		Cluster:      params.Cluster,
+		VultrCluster: params.VultrCluster,
+		//VultrAPIClients: params.VultrAPIClients,
+		patchHelper: helper,
+		vultrClient: vultrClient,
 	}, nil
 }
 
@@ -99,4 +104,34 @@ func (s *ClusterScope) AddCredentialsRefFinalizer(ctx context.Context) error {
 	}
 
 	return addCredentialsFinalizer(ctx, s.VultrAPIClients, *s.VultrCluster.Spec.CredentialsRef, s.VultrCluster.GetNamespace(), toFinalizer(s.VultrCluster))
+}
+
+// APIServerLoadbalancersRef get the DOCluster status Network APIServerLoadbalancersRef.
+func (s *ClusterScope) APIServerLoadbalancersRef() *infrav1.VultrResourceReference {
+	return &s.VultrCluster.Status.Network.APIServerLoadbalancersRef
+}
+
+// UID returns the cluster UID.
+func (s *ClusterScope) UID() string {
+	return string(s.Cluster.UID)
+}
+
+// Region returns the cluster region.
+func (s *ClusterScope) Region() string {
+	return s.VultrCluster.Spec.Region
+}
+
+// Name returns the cluster name.
+func (s *ClusterScope) Name() string {
+	return s.Cluster.GetName()
+}
+
+// SetReady sets the DOCluster Ready Status.
+func (s *ClusterScope) SetReady() {
+	s.VultrCluster.Status.Ready = true
+}
+
+// SetControlPlaneEndpoint sets the VultrCluster status APIEndpoints.
+func (s *ClusterScope) SetControlPlaneEndpoint(apiEndpoint clusterv1.APIEndpoint) {
+	s.VultrCluster.Spec.ControlPlaneEndpoint = apiEndpoint
 }

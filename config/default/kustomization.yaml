@@ -13,6 +13,8 @@ namePrefix: capv-
 #- includeSelectors: true
 #  pairs:
 #    someName: someValue
+commonLabels:
+  cluster.x-k8s.io/provider: "infrastructure-vultr"
 
 resources:
 - ../crd
@@ -22,9 +24,9 @@ resources:
 # crd/kustomization.yaml
 #- ../webhook
 # [CERTMANAGER] To enable cert-manager, uncomment all sections with 'CERTMANAGER'. 'WEBHOOK' components are required.
-#- ../certmanager
+- ../certmanager
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
-#- ../prometheus
+- ../prometheus
 
 patches:
 # Protect the /metrics endpoint by putting it behind auth.

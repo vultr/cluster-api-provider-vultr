@@ -34,6 +34,23 @@ var (
 	SubscriptionStatusOK          = SubscriptionStatus("ok")
 )
 
+// VultrResourceReference is a reference to a Vultr resource.
+type VultrResourceReference struct {
+	// ID of Vultr resource
+	// +optional
+	ResourceID string `json:"resourceId,omitempty"`
+	// Status of a Vultr resource
+	// +optional
+	ResourceStatus SubscriptionStatus `json:"resourceStatus,omitempty"`
+}
+
+// VultrNetworkResource encapsulates Vultr networking resources.
+type VultrNetworkResource struct {
+	// APIServerLoadbalancersRef is the id of apiserver loadbalancers.
+	// +optional
+	APIServerLoadbalancersRef VultrResourceReference `json:"apiServerLoadbalancersRef,omitempty"`
+}
+
 // NetworkSpec encapsulates Vultr networking configuration.
 type NetworkSpec struct {
 	// Configures an API Server loadbalancers
@@ -111,4 +128,17 @@ type VultrMachineTemplateResource struct {
 // VultrClusterTemplateResource describes the data needed to create a VultrCluster from a template.
 type VultrClusterTemplateResource struct {
 	Spec VultrClusterSpec `json:"spec"`
+}
+
+
+// SecretReference represents a Secret Reference. It has enough information to retrieve secret
+// in any namespace
+// +structType=atomic
+type SecretReference struct {
+	// name is unique within a namespace to reference a secret resource.
+	// +optional
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// namespace defines the space within which the secret name must be unique.
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }

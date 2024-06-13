@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
@@ -43,11 +44,21 @@ type VultrMachineSpec struct {
 	// PlanID is the id of Vultr VPS plan (VPSPLANID).
 	PlanID string `json:"planID,omitempty"`
 
+	// The Vultr Region (DCID) the cluster lives on
+	// +kubebuilder:validation:Required
+	Region string `json:"region"`
+
 	// SSHKeyName is the name of the ssh key to attach to the instance.
 	SSHKeyName string `json:"sshKeyName,omitempty"`
 
-	// ScriptID is the id of Startup Script (SCRIPTID).
-	ScriptID int `json:"scriptID,omitempty"`
+	// CredentialsRef is a reference to a Secret that contains the credentials
+	// to use for provisioning this machine. If not supplied then these
+	// credentials will be used in-order:
+	//   1. VultrMachine
+	//   2. Owner VultrCluster
+	//   3. Controller
+	// +optional
+	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
 }
 
 // VultrMachineStatus defines the observed state of VultrMachine
@@ -57,6 +68,9 @@ type VultrMachineStatus struct {
 
 	// Ready represents the infrastructure is ready to be used or not.
 	Ready bool `json:"ready"`
+
+	// Addresses contains the Vultr instance associated addresses.
+	Addresses []clusterv1.MachineAddress `json:"addresses,omitempty"`
 
 	// ServerStatus represents the status of subscription.
 	SubscriptionStatus *SubscriptionStatus `json:"subscriptionStatus,omitempty"`
@@ -114,6 +128,11 @@ func (r *VultrMachine) SetConditions(conditions clusterv1.Conditions) {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this VultrMachine belongs"
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.subscriptionStatus",description="Vultr instance state"
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Machine ready status"
+// +kubebuilder:printcolumn:name="InstanceID",type="string",JSONPath=".spec.providerID",description="Vultr instance ID"
+// +kubebuilder:printcolumn:name="Machine",type="string",JSONPath=".metadata.ownerReferences[?(@.kind==\"Machine\")].name",description="Machine object which owns with this VultrMachine"
 
 // VultrMachine is the Schema for the vultrmachines API
 type VultrMachine struct {

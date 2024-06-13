@@ -27,10 +27,11 @@ import (
 
 // VultrClients hold all necessary clients to work with the Vultr API.
 type VultrAPIClients struct {
-	Instance      govultr.InstanceService
-	LoadBalancers govultr.LoadBalancerService
-	VPC           govultr.VPCService
-	K8sClient     client.Client
+	Instances      	govultr.InstanceService
+	LoadBalancers 	govultr.LoadBalancerService
+	VPC           	govultr.VPCService
+	SSHKEYS 		govultr.SSHKeyService
+	K8sClient     	client.Client
 }
 
 func (v *VultrAPIClients) Update(ctx context.Context, obj client.Object) error {

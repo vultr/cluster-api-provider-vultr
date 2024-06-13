@@ -52,10 +52,8 @@ spec:
                     description: VultrClusterSpec defines the desired state of VultrCluster
                     properties:
                       controlPlaneEndpoint:
-                        description: |-
-                          ControlPlaneEndpoint represents the endpoint used to communicate with the
-                          control plane. If ControlPlaneDNS is unset, the Vultr load-balancer IP
-                          of the Kubernetes API Server is used.
+                        description: ControlPlaneEndpoint represents the endpoint
+                          used to communicate with the control plane.
                         properties:
                           host:
                             description: The hostname on which the API server is serving.

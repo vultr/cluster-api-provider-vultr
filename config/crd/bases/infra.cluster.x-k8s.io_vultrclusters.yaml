@@ -8,13 +8,29 @@ metadata:
 spec:
   group: infra.cluster.x-k8s.io
   names:
+    categories:
+    - cluster-api
     kind: VultrCluster
     listKind: VultrClusterList
     plural: vultrclusters
     singular: vultrcluster
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - description: Cluster to which this VultrCluster belongs
+      jsonPath: .metadata.labels.cluster\.x-k8s\.io/cluster-name
+      name: Cluster
+      type: string
+    - description: Cluster infrastructure is ready for Vultr instances
+      jsonPath: .status.ready
+      name: Ready
+      type: string
+    - description: API Endpoint
+      jsonPath: .spec.ControlPlaneEndpoint
+      name: Endpoint
+      priority: 1
+      type: string
+    name: v1
     schema:
       openAPIV3Schema:
         description: VultrCluster is the Schema for the vultrclusters API
@@ -40,10 +56,8 @@ spec:
             description: VultrClusterSpec defines the desired state of VultrCluster
             properties:
               controlPlaneEndpoint:
-                description: |-
-                  ControlPlaneEndpoint represents the endpoint used to communicate with the
-                  control plane. If ControlPlaneDNS is unset, the Vultr load-balancer IP
-                  of the Kubernetes API Server is used.
+                description: ControlPlaneEndpoint represents the endpoint used to
+                  communicate with the control plane.
                 properties:
                   host:
                     description: The hostname on which the API server is serving.
@@ -272,6 +286,21 @@ spec:
                   can be added as events to the Machine object and/or logged in the
                   controller's output.
                 type: string
+              network:
+                description: VultrNetworkResource encapsulates Vultr networking resources.
+                properties:
+                  apiServerLoadbalancersRef:
+                    description: APIServerLoadbalancersRef is the id of apiserver
+                      loadbalancers.
+                    properties:
+                      resourceId:
+                        description: ID of Vultr resource
+                        type: string
+                      resourceStatus:
+                        description: Status of a Vultr resource
+                        type: string
+                    type: object
+                type: object
               ready:
                 description: Ready denotes that the cluster (infrastructure) is ready
                 type: boolean

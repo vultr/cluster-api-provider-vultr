@@ -9,4 +9,5 @@ metadata:
     app.kubernetes.io/created-by: cluster-api-provider-vultr
   name: vultrmachine-sample
 spec:
-  # TODO(user): Add fields here
+  region: ewr
+  planID: vc2-2c-4gb
