@@ -70,21 +70,6 @@ spec:
                 - host
                 - port
                 type: object
-              credentialsRef:
-                description: |-
-                  CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
-                  supplied then the credentials of the controller will be used.
-                properties:
-                  name:
-                    description: name is unique within a namespace to reference a
-                      secret resource.
-                    type: string
-                  namespace:
-                    description: namespace defines the space within which the secret
-                      name must be unique.
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
               network:
                 description: NetworkSpec encapsulates all things related to Vultr
                   network.
@@ -293,11 +278,17 @@ spec:
                     description: APIServerLoadbalancersRef is the id of apiserver
                       loadbalancers.
                     properties:
+                      powerStatus:
+                        description: Power Status of a Vultr resource
+                        type: string
                       resourceId:
                         description: ID of Vultr resource
                         type: string
                       resourceStatus:
                         description: Status of a Vultr resource
+                        type: string
+                      serverState:
+                        description: Server state of a Vultr resource
                         type: string
                     type: object
                 type: object

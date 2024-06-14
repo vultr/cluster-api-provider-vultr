@@ -37,7 +37,7 @@ type VultrClusterTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec VultrClusterTemplateSpec `json:"spec,omitempty"`
+	Spec VultrClusterSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true

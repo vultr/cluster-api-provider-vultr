@@ -30,12 +30,13 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
-	"github.com/vultr/cluster-api-provider-vultr/internal/controller"
+	vcontroller "github.com/vultr/cluster-api-provider-vultr/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -105,6 +106,8 @@ func main() {
 	// 	TLSOpts: tlsOpts,
 	// })
 
+	ctx := ctrl.SetupSignalHandler()
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
@@ -133,7 +136,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.VultrClusterReconciler{
+	if err = (&vcontroller.VultrClusterReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
 		VultrApiKey: vultrApiKey,
@@ -141,11 +144,12 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}
-	if err = (&controller.VultrMachineReconciler{
+	if err = (&vcontroller.VultrMachineReconciler{
 		Client:      mgr.GetClient(),
 		Scheme:      mgr.GetScheme(),
+		Recorder:    mgr.GetEventRecorderFor("vultrmachine-controller"),
 		VultrApiKey: vultrApiKey,
-	}).SetupWithManager(mgr); err != nil {
+	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrMachine")
 		os.Exit(1)
 	}
@@ -161,7 +165,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}

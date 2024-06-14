@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,14 +25,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
-	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -127,7 +126,7 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Create the cluster scope
 	// Create the cluster scope.
-	clusterScope, err := scope.NewClusterScope(ctx, r.VultrApiKey, scope.ClusterScopeParams{
+	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:       r.Client,
 		Logger:       log,
 		Cluster:      cluster,
@@ -196,14 +195,14 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	}
 
 	if instance == nil {
-		instance, err = computesvc.Createinstance(machineScope)
+		instance, err = instancesvc.CreateInstance(machineScope)
 		if err != nil {
 			err = errors.Errorf("Failed to create instance instance for VultrMachine %s/%s: %v", vultrmachine.Namespace, vultrmachine.Name, err)
 			r.Recorder.Event(vultrmachine, corev1.EventTypeWarning, "InstanceCreatingError", err.Error())
-			machineScope.SetInstanceStatus(infrav1.VultrResourceStatusErrored)
+			machineScope.SetInstanceServerState(infrav1.ServerStateError)
 			return reconcile.Result{}, err
 		}
-		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Name)
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Label)
 	}
 
 	// Register the finalizer immediately to avoid orphaning Vultr resources on delete.
@@ -218,14 +217,14 @@ func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineSco
 	machineScope.Info("Reconciling delete VultrMachine")
 	vultrmachine := machineScope.VultrMachine
 
-	computesvc := services.NewService(ctx, clusterScope)
-	vc, err := computesvc.GetInstance(machineScope.GetInstanceID())
+	vultrcomputesvc := services.NewService(ctx, clusterScope)
+	vultrInstance, err := vultrcomputesvc.GetInstance(machineScope.GetInstanceID())
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if instance != nil {
-		if err := computesvc.DeleteInstance(machineScope.GetInstanceID()); err != nil {
+	if vultrInstance != nil {
+		if err := vultrcomputesvc.DeleteInstance(machineScope.GetInstanceID()); err != nil {
 			return reconcile.Result{}, err
 		}
 	} else {
@@ -238,32 +237,66 @@ func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineSco
 	return reconcile.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *VultrMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	vultrMachineMapper, err := clusterutil.ClusterToTypedObjectsMapper(r.Client, &infrav1.VultrMachineList{}, mgr.GetScheme())
-	if err != nil {
-		return fmt.Errorf("failed to create mapper for VultrMachines: %w", err)
-	}
+// // SetupWithManager sets up the controller with the Manager.
+// func (r *VultrMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
+// 	vultrMachineMapper, err := clusterutil.ClusterToTypedObjectsMapper(r.Client, &infrav1.VultrMachineList{}, mgr.GetScheme())
+// 	if err != nil {
+// 		return fmt.Errorf("failed to create mapper for VultrMachines: %w", err)
+// 	}
 
-	err = ctrl.NewControllerManagedBy(mgr).
+// 	err = ctrl.NewControllerManagedBy(mgr).
+// 		For(&infrav1.VultrMachine{}).
+// 		Watches(
+// 			&clusterv1.Machine{},
+// 			handler.EnqueueRequestsFromMapFunc(clusterutil.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind("VultrMachine"))),
+// 		).
+// 		Watches(
+// 			&infrav1.VultrCluster{},
+// 			handler.EnqueueRequestsFromMapFunc(r.VultrClusterToVultrMachines(mgr.GetLogger())),
+// 		).
+// 		Watches(
+// 			&clusterv1.Cluster{},
+// 			handler.EnqueueRequestsFromMapFunc(vultrMachineMapper),
+// 			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
+// 		).
+// 		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
+// 		Complete(r)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to build controller: %w", err)
+// 	}
+
+// 	return nil
+// }
+
+func (r *VultrMachineReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
+	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.VultrMachine{}).
+		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
 		Watches(
 			&clusterv1.Machine{},
-			handler.EnqueueRequestsFromMapFunc(clusterutil.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind("VultrMachine"))),
+			handler.EnqueueRequestsFromMapFunc(util.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind("VultrMachine"))),
 		).
 		Watches(
 			&infrav1.VultrCluster{},
-			handler.EnqueueRequestsFromMapFunc(r.VultrClusterToVultrMachines(mgr.GetLogger())),
+			handler.EnqueueRequestsFromMapFunc(r.VultrClusterToVultrMachines(ctx)),
 		).
-		Watches(
-			&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(vultrMachineMapper),
-			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
-		).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
-		Complete(r)
+		Build(r)
 	if err != nil {
-		return fmt.Errorf("failed to build controller: %w", err)
+		return errors.Wrapf(err, "error creating controller")
+	}
+
+	clusterToObjectFunc, err := util.ClusterToTypedObjectsMapper(r.Client, &infrav1.VultrMachineList{}, mgr.GetScheme())
+	if err != nil {
+		return errors.Wrapf(err, "failed to create mapper for Cluster to VultrMachines")
+	}
+
+	// Add a watch on clusterv1.Cluster object for unpause & ready notifications.
+	if err := c.Watch(
+		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
+		handler.EnqueueRequestsFromMapFunc(clusterToObjectFunc),
+		predicates.ClusterUnpausedAndInfrastructureReady(ctrl.LoggerFrom(ctx)),
+	); err != nil {
+		return errors.Wrapf(err, "failed adding a watch for ready clusters")
 	}
 
 	return nil

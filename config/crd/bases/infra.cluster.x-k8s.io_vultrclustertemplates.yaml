@@ -42,161 +42,133 @@ spec:
           metadata:
             type: object
           spec:
-            description: VultrClusterTemplateSpec defines the desired state of VultrClusterTemplate
+            description: VultrClusterSpec defines the desired state of VultrCluster
             properties:
-              template:
-                description: VultrClusterTemplateResource describes the data needed
-                  to create a VultrCluster from a template.
+              controlPlaneEndpoint:
+                description: ControlPlaneEndpoint represents the endpoint used to
+                  communicate with the control plane.
                 properties:
-                  spec:
-                    description: VultrClusterSpec defines the desired state of VultrCluster
+                  host:
+                    description: The hostname on which the API server is serving.
+                    type: string
+                  port:
+                    description: The port on which the API server is serving.
+                    format: int32
+                    type: integer
+                required:
+                - host
+                - port
+                type: object
+              network:
+                description: NetworkSpec encapsulates all things related to Vultr
+                  network.
+                properties:
+                  apiServerLoadbalancers:
+                    description: Configures an API Server loadbalancers
                     properties:
-                      controlPlaneEndpoint:
-                        description: ControlPlaneEndpoint represents the endpoint
-                          used to communicate with the control plane.
+                      date_created:
+                        type: string
+                      firewall_rules:
+                        items:
+                          description: LBFirewallRule represents a single firewall
+                            rule
+                          properties:
+                            id:
+                              type: string
+                            ip_type:
+                              type: string
+                            port:
+                              type: integer
+                            source:
+                              type: string
+                          type: object
+                        type: array
+                      forwarding_rules:
+                        items:
+                          description: ForwardingRule represent a single forwarding
+                            rule
+                          properties:
+                            backend_port:
+                              type: integer
+                            backend_protocol:
+                              type: string
+                            frontend_port:
+                              type: integer
+                            frontend_protocol:
+                              type: string
+                            id:
+                              type: string
+                          type: object
+                        type: array
+                      generic_info:
+                        description: GenericInfo represents generic configuration
+                          of your load balancer
                         properties:
-                          host:
-                            description: The hostname on which the API server is serving.
+                          balancing_algorithm:
                             type: string
-                          port:
-                            description: The port on which the API server is serving.
-                            format: int32
-                            type: integer
-                        required:
-                        - host
-                        - port
-                        type: object
-                      credentialsRef:
-                        description: |-
-                          CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
-                          supplied then the credentials of the controller will be used.
-                        properties:
-                          name:
-                            description: name is unique within a namespace to reference
-                              a secret resource.
+                          private_network:
                             type: string
-                          namespace:
-                            description: namespace defines the space within which
-                              the secret name must be unique.
-                            type: string
-                        type: object
-                        x-kubernetes-map-type: atomic
-                      network:
-                        description: NetworkSpec encapsulates all things related to
-                          Vultr network.
-                        properties:
-                          apiServerLoadbalancers:
-                            description: Configures an API Server loadbalancers
+                          proxy_protocol:
+                            type: boolean
+                          ssl_redirect:
+                            type: boolean
+                          sticky_sessions:
+                            description: StickySessions represents cookie for your
+                              load balancer
                             properties:
-                              date_created:
-                                type: string
-                              firewall_rules:
-                                items:
-                                  description: LBFirewallRule represents a single
-                                    firewall rule
-                                  properties:
-                                    id:
-                                      type: string
-                                    ip_type:
-                                      type: string
-                                    port:
-                                      type: integer
-                                    source:
-                                      type: string
-                                  type: object
-                                type: array
-                              forwarding_rules:
-                                items:
-                                  description: ForwardingRule represent a single forwarding
-                                    rule
-                                  properties:
-                                    backend_port:
-                                      type: integer
-                                    backend_protocol:
-                                      type: string
-                                    frontend_port:
-                                      type: integer
-                                    frontend_protocol:
-                                      type: string
-                                    id:
-                                      type: string
-                                  type: object
-                                type: array
-                              generic_info:
-                                description: GenericInfo represents generic configuration
-                                  of your load balancer
-                                properties:
-                                  balancing_algorithm:
-                                    type: string
-                                  private_network:
-                                    type: string
-                                  proxy_protocol:
-                                    type: boolean
-                                  ssl_redirect:
-                                    type: boolean
-                                  sticky_sessions:
-                                    description: StickySessions represents cookie
-                                      for your load balancer
-                                    properties:
-                                      cookie_name:
-                                        type: string
-                                    type: object
-                                  vpc:
-                                    type: string
-                                type: object
-                              has_ssl:
-                                type: boolean
-                              health_check:
-                                description: HealthCheck represents your health check
-                                  configuration for your load balancer.
-                                properties:
-                                  check_interval:
-                                    type: integer
-                                  healthy_threshold:
-                                    type: integer
-                                  path:
-                                    type: string
-                                  port:
-                                    type: integer
-                                  protocol:
-                                    type: string
-                                  response_timeout:
-                                    type: integer
-                                  unhealthy_threshold:
-                                    type: integer
-                                type: object
-                              id:
-                                type: string
-                              instances:
-                                items:
-                                  type: string
-                                type: array
-                              ipv4:
-                                type: string
-                              ipv6:
-                                type: string
-                              label:
-                                type: string
-                              nodes:
-                                type: integer
-                              region:
-                                type: string
-                              status:
+                              cookie_name:
                                 type: string
                             type: object
+                          vpc:
+                            type: string
                         type: object
-                      region:
-                        description: The Vultr Region (DCID) the cluster lives on
+                      has_ssl:
+                        type: boolean
+                      health_check:
+                        description: HealthCheck represents your health check configuration
+                          for your load balancer.
+                        properties:
+                          check_interval:
+                            type: integer
+                          healthy_threshold:
+                            type: integer
+                          path:
+                            type: string
+                          port:
+                            type: integer
+                          protocol:
+                            type: string
+                          response_timeout:
+                            type: integer
+                          unhealthy_threshold:
+                            type: integer
+                        type: object
+                      id:
                         type: string
-                    required:
-                    - controlPlaneEndpoint
-                    - region
+                      instances:
+                        items:
+                          type: string
+                        type: array
+                      ipv4:
+                        type: string
+                      ipv6:
+                        type: string
+                      label:
+                        type: string
+                      nodes:
+                        type: integer
+                      region:
+                        type: string
+                      status:
+                        type: string
                     type: object
-                required:
-                - spec
                 type: object
+              region:
+                description: The Vultr Region (DCID) the cluster lives on
+                type: string
             required:
-            - template
+            - controlPlaneEndpoint
+            - region
             type: object
         type: object
     served: true

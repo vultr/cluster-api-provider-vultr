@@ -136,7 +136,7 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Create the cluster scope.
-	clusterScope, err := scope.NewClusterScope(ctx, r.VultrApiKey, scope.ClusterScopeParams{
+	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:       r.Client,
 		Logger:       log,
 		Cluster:      cluster,
@@ -199,10 +199,10 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	}
 
 	apiServerLoadbalancerRef.ResourceID = loadbalancer.ID
-	apiServerLoadbalancerRef.ResourceStatus = infrav1.SubscriptionStatus(loadbalancer.Status)
+	apiServerLoadbalancerRef.ResourceSubscriptionStatus = infrav1.SubscriptionStatus(loadbalancer.Status)
 	apiServerLoadbalancer.ID = loadbalancer.ID
 
-	if apiServerLoadbalancerRef.ResourceStatus != infrav1.SubscriptionRunning && loadbalancer.IPV4 == "" {
+	if apiServerLoadbalancerRef.ResourcePowerStatus != infrav1.PowerStatusRunning && loadbalancer.IPV4 == "" {
 		clusterScope.Info("Waiting on API server Global IP Address")
 		return reconcile.Result{RequeueAfter: 15 * time.Second}, nil
 	}

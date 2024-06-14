@@ -86,9 +86,9 @@ spec:
                       region:
                         description: The Vultr Region (DCID) the cluster lives on
                         type: string
-                      sshKeyName:
-                        description: SSHKeyName is the name of the ssh key to attach
-                          to the instance.
+                      sshKey:
+                        description: sshKey is the name of the ssh key to attach to
+                          the instance.
                         type: string
                     required:
                     - region

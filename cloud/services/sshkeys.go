@@ -6,7 +6,7 @@ import (
 	"github.com/vultr/govultr/v3"
 )
 
-// GetSSHKey returns the SSH key from Vultr 
+// GetSSHKey returns the SSH key from Vultr
 func (s *Service) GetSSHKey(sshkey string) (*govultr.SSHKey, error) {
 	if sshkey == "" {
 		return nil, errors.New("Missing SSH KEY")

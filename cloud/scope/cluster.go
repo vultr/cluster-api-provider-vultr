@@ -3,6 +3,7 @@ package scope
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
@@ -26,7 +27,7 @@ type ClusterScopeParams struct {
 
 // NewClusterScope creates a new Scope from the supplied parameters.
 // This is meant to be called for each reconcile iteration.
-func NewClusterScope(ctx context.Context, apiKey string, params ClusterScopeParams) (*ClusterScope, error) {
+func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 
 	if params.Cluster == nil {
 		return nil, errors.New("Cluster is required when creating a ClusterScope")
@@ -36,17 +37,24 @@ func NewClusterScope(ctx context.Context, apiKey string, params ClusterScopePara
 		return nil, errors.New("VultrCluster is required when creating a ClusterScope")
 	}
 
+	// Retrieve the API key from the environment variable.
+	apiKey := os.Getenv("VULTR_API_KEY")
 	if apiKey == "" {
-		return nil, errors.New("environment variable VULTR_API_KEY is required")
+		return nil, errors.New("VULTR_API_KEY environment variable is not set")
 	}
 
-	// config := &oauth2.Config{}
-	// tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
-	// vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
-
+	// Create the Vultr client.
 	vultrClient, err := CreateVultrClient(apiKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Vultr Client: %w", err)
+	}
+
+	if params.VultrAPIClients.Instances == nil {
+		params.VultrAPIClients.Instances = vultrClient.Instance
+	}
+
+	if params.VultrAPIClients.LoadBalancers == nil {
+		params.VultrAPIClients.LoadBalancers = vultrClient.LoadBalancer
 	}
 
 	helper, err := patch.NewHelper(params.VultrCluster, params.Client)
@@ -55,12 +63,12 @@ func NewClusterScope(ctx context.Context, apiKey string, params ClusterScopePara
 	}
 
 	return &ClusterScope{
-		client:       params.Client,
-		Cluster:      params.Cluster,
-		VultrCluster: params.VultrCluster,
-		//VultrAPIClients: params.VultrAPIClients,
-		patchHelper: helper,
-		vultrClient: vultrClient,
+		client:          params.Client,
+		Cluster:         params.Cluster,
+		VultrCluster:    params.VultrCluster,
+		VultrAPIClients: params.VultrAPIClients,
+		patchHelper:     helper,
+		vultrClient:     vultrClient,
 	}, nil
 }
 
@@ -98,15 +106,15 @@ func (s *ClusterScope) APIServerLoadbalancers() *infrav1.VultrLoadBalancer {
 	return &s.VultrCluster.Spec.Network.APIServerLoadbalancers
 }
 
-func (s *ClusterScope) AddCredentialsRefFinalizer(ctx context.Context) error {
-	if s.VultrCluster.Spec.CredentialsRef == nil {
-		return nil
-	}
+// func (s *ClusterScope) AddCredentialsRefFinalizer(ctx context.Context) error {
+// 	if s.VultrCluster.Spec.CredentialsRef == nil {
+// 		return nil
+// 	}
 
-	return addCredentialsFinalizer(ctx, s.VultrAPIClients, *s.VultrCluster.Spec.CredentialsRef, s.VultrCluster.GetNamespace(), toFinalizer(s.VultrCluster))
-}
+// 	return addCredentialsFinalizer(ctx, s.VultrAPIClients, *s.VultrCluster.Spec.CredentialsRef, s.VultrCluster.GetNamespace(), toFinalizer(s.VultrCluster))
+// }
 
-// APIServerLoadbalancersRef get the DOCluster status Network APIServerLoadbalancersRef.
+// APIServerLoadbalancersRef get the VultrCluster status Network APIServerLoadbalancersRef.
 func (s *ClusterScope) APIServerLoadbalancersRef() *infrav1.VultrResourceReference {
 	return &s.VultrCluster.Status.Network.APIServerLoadbalancersRef
 }

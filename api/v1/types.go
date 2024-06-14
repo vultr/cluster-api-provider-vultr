@@ -15,23 +15,55 @@ limitations under the License.
 
 package v1
 
+// // ServerStatus represents the status of subscription.
+// type SubscriptionStatus string
+
+// var (
+// 	SubscriptionStatusPending     = SubscriptionStatus("pending")
+// 	SubscriptionStatusActive      = SubscriptionStatus("active")
+// 	SubscriptionStatusClosed      = SubscriptionStatus("closed")
+// 	SubscriptionStatusSuspended   = SubscriptionStatus("suspended")
+// 	SubscriptionStarting          = SubscriptionStatus("starting")
+// 	SubscriptionStopped           = SubscriptionStatus("stopped")
+// 	SubscriptionRunning           = SubscriptionStatus("running")
+// 	SubscriptionStatusNone        = SubscriptionStatus("none")
+// 	SubscriptionStatusLocked      = SubscriptionStatus("locked")
+// 	SubscriptionStatusInstalling  = SubscriptionStatus("installing")
+// 	SubscriptionStatusBooting     = SubscriptionStatus("booting")
+// 	SubscriptionStatusIsoMounting = SubscriptionStatus("isomounting")
+// 	SubscriptionStatusOK          = SubscriptionStatus("ok")
+// 	SubscriptionStatusError 	  = SubscriptionStatus("error")
+// )
+
 // ServerStatus represents the status of subscription.
 type SubscriptionStatus string
 
 var (
-	SubscriptionStatusPending     = SubscriptionStatus("pending")
-	SubscriptionStatusActive      = SubscriptionStatus("active")
-	SubscriptionStatusClosed      = SubscriptionStatus("closed")
-	SubscriptionStatusSuspended   = SubscriptionStatus("suspended")
-	SubscriptionStarting          = SubscriptionStatus("starting")
-	SubscriptionStopped           = SubscriptionStatus("stopped")
-	SubscriptionRunning           = SubscriptionStatus("running")
-	SubscriptionStatusNone        = SubscriptionStatus("none")
-	SubscriptionStatusLocked      = SubscriptionStatus("locked")
-	SubscriptionStatusInstalling  = SubscriptionStatus("installing")
-	SubscriptionStatusBooting     = SubscriptionStatus("booting")
-	SubscriptionStatusIsoMounting = SubscriptionStatus("isomounting")
-	SubscriptionStatusOK          = SubscriptionStatus("ok")
+	SubscriptionStatusPending   = SubscriptionStatus("pending")
+	SubscriptionStatusActive    = SubscriptionStatus("active")
+	SubscriptionStatusSuspended = SubscriptionStatus("suspended")
+	SubscriptionStatusClosed    = SubscriptionStatus("closed")
+)
+
+// PowerStatus represents that the VPS is powerd on or not
+type PowerStatus string
+
+var (
+	PowerStatusStarting = PowerStatus("starting")
+	PowerStatusStopped  = PowerStatus("stopped")
+	PowerStatusRunning  = PowerStatus("running")
+)
+
+// ServerState represents a detail of server state.
+type ServerState string
+
+var (
+	ServerStateNone        = ServerState("none")
+	ServerStateLocked      = ServerState("locked")
+	ServerStateBooting     = ServerState("installingbooting")
+	ServerStateIsoMounting = ServerState("isomounting")
+	ServerStateOK          = ServerState("ok")
+	ServerStateError       = ServerState("error")
 )
 
 // VultrResourceReference is a reference to a Vultr resource.
@@ -41,7 +73,13 @@ type VultrResourceReference struct {
 	ResourceID string `json:"resourceId,omitempty"`
 	// Status of a Vultr resource
 	// +optional
-	ResourceStatus SubscriptionStatus `json:"resourceStatus,omitempty"`
+	ResourceSubscriptionStatus SubscriptionStatus `json:"resourceStatus,omitempty"`
+	// Power Status of a Vultr resource
+	// +optional
+	ResourcePowerStatus PowerStatus `json:"powerStatus,omitempty"`
+	// Server state of a Vultr resource
+	// +optional
+	ResourceServerState ServerState `json:"serverState,omitempty"`
 }
 
 // VultrNetworkResource encapsulates Vultr networking resources.
@@ -129,7 +167,6 @@ type VultrMachineTemplateResource struct {
 type VultrClusterTemplateResource struct {
 	Spec VultrClusterSpec `json:"spec"`
 }
-
 
 // SecretReference represents a Secret Reference. It has enough information to retrieve secret
 // in any namespace

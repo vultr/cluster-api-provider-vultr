@@ -25,10 +25,10 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/klogr"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	capierrors "sigs.k8s.io/cluster-api/errors"
+	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -79,10 +79,6 @@ func NewMachineScope(ctx context.Context, apiKey string, params MachineScopePara
 	}
 	if params.VultrMachine == nil {
 		return nil, errors.New("VultrMachine is required when creating a MachineScope")
-	}
-
-	if params.Logger == (logr.Logger{}) {
-		params.Logger = klogr.New()
 	}
 
 	// config := &oauth2.Config{}
@@ -190,7 +186,6 @@ func (m *MachineScope) Namespace() string {
 	return m.VultrMachine.Namespace
 }
 
-
 // GetBootstrapData returns the bootstrap data from the secret in the Machine's bootstrap.dataSecretName.
 func (m *MachineScope) GetBootstrapData() (string, error) {
 	if m.Machine.Spec.Bootstrap.DataSecretName == nil {
@@ -208,4 +203,47 @@ func (m *MachineScope) GetBootstrapData() (string, error) {
 		return "", errors.New("error retrieving bootstrap data: secret value key is missing")
 	}
 	return string(value), nil
+}
+
+// IsControlPlane returns true if the machine is a control plane.
+func (m *MachineScope) IsControlPlane() bool {
+	return util.IsControlPlaneMachine(m.Machine)
+}
+
+// Role returns the machine role from the labels.
+func (m *MachineScope) Role() string {
+	if util.IsControlPlaneMachine(m.Machine) {
+		return infrav1.APIServerRoleTagValue
+	}
+	return infrav1.NodeRoleTagValue
+}
+
+// GetInstanceStatus returns the VultrMachine instance status from the status.
+func (m *MachineScope) GetInstanceStatus() *infrav1.SubscriptionStatus {
+	return m.VultrMachine.Status.SubscriptionStatus
+}
+
+// SetInstanceStatus sets the VultrMachine Instance.
+func (m *MachineScope) SetInstanceStatus(v infrav1.SubscriptionStatus) {
+	m.VultrMachine.Status.SubscriptionStatus = &v
+}
+
+// GetInstanceStatus returns the VultrMachine instance status from the status.
+func (m *MachineScope) GetInstancePowerStatus() *infrav1.PowerStatus {
+	return m.VultrMachine.Status.PowerStatus
+}
+
+// SetInstanceStatus sets the VultrMachine Instance.
+func (m *MachineScope) SetInstancePowerStatus(v infrav1.PowerStatus) {
+	m.VultrMachine.Status.PowerStatus = &v
+}
+
+// GetInstanceStatus returns the VultrMachine instance server state status .
+func (m *MachineScope) GetInstanceServerState() *infrav1.ServerState {
+	return m.VultrMachine.Status.ServerState
+}
+
+// GetInstanceStatus returns the VultrMachine instance server state status .
+func (m *MachineScope) SetInstanceServerState(v infrav1.ServerState) {
+	m.VultrMachine.Status.ServerState = &v
 }

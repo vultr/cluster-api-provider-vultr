@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
@@ -44,14 +43,14 @@ type VultrClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
 
-	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
-	// supplied then the credentials of the controller will be used.
-	// +optional
-	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+	// // CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
+	// // supplied then the credentials of the controller will be used.
+	// // +optional
+	// CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
 
-	// ControlPlaneLoadbalancer points to the load-balancer IP used for the ControlPlaneEndpoint.
-	//+optional
-	// ControlPlaneLoadBalancer *VultrLoadBalancer `json:"loadBalancer,omitempty"
+	// // ControlPlaneLoadbalancer points to the load-balancer IP used for the ControlPlaneEndpoint.
+	// //+optional
+	// // ControlPlaneLoadBalancer *VultrLoadBalancer `json:"loadBalancer,omitempty"
 
 }
 

@@ -8,6 +8,8 @@ metadata:
 spec:
   group: infra.cluster.x-k8s.io
   names:
+    categories:
+    - cluster-api
     kind: VultrMachine
     listKind: VultrMachineList
     plural: vultrmachines
@@ -93,9 +95,8 @@ spec:
               region:
                 description: The Vultr Region (DCID) the cluster lives on
                 type: string
-              sshKeyName:
-                description: SSHKeyName is the name of the ssh key to attach to the
-                  instance.
+              sshKey:
+                description: sshKey is the name of the ssh key to attach to the instance.
                 type: string
             required:
             - region
@@ -208,10 +209,16 @@ spec:
                   can be added as events to the Machine object and/or logged in the
                   controller's output.
                 type: string
+              powerStatus:
+                description: PowerStatus represents that the VPS is powerd on or not
+                type: string
               ready:
                 description: Ready represents the infrastructure is ready to be used
                   or not.
                 type: boolean
+              serverState:
+                description: ServerState represents a detail of server state.
+                type: string
               subscriptionStatus:
                 description: ServerStatus represents the status of subscription.
                 type: string
