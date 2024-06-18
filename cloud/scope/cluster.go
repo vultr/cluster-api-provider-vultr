@@ -7,7 +7,6 @@ import (
 
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
-	"github.com/vultr/govultr/v3"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
 	"github.com/go-logr/logr"
@@ -63,12 +62,12 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	}
 
 	return &ClusterScope{
+		Logger:          params.Logger,
 		client:          params.Client,
 		Cluster:         params.Cluster,
 		VultrCluster:    params.VultrCluster,
 		VultrAPIClients: params.VultrAPIClients,
 		patchHelper:     helper,
-		vultrClient:     vultrClient,
 	}, nil
 }
 
@@ -81,7 +80,6 @@ type ClusterScope struct {
 	VultrAPIClients
 	Cluster      *clusterv1.Cluster
 	VultrCluster *infrav1.VultrCluster
-	vultrClient  *govultr.Client
 }
 
 // PatchObject persists the cluster configuration and status.
@@ -134,7 +132,7 @@ func (s *ClusterScope) Name() string {
 	return s.Cluster.GetName()
 }
 
-// SetReady sets the DOCluster Ready Status.
+// SetReady sets the VultrCluster Ready Status.
 func (s *ClusterScope) SetReady() {
 	s.VultrCluster.Status.Ready = true
 }

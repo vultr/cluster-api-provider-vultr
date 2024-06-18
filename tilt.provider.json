@@ -1,7 +1,7 @@
 {
     "name": "vultr",
     "config": {
-      "image": "gcr.io/k8s-staging-cluster-api-vultr/cluster-api-vultr-controller",
+      "image": "sjc.vultrcr.com/dragoncity/capv-imagetest",
       "live_reload_deps": [
         "main.go",
         "go.mod",
