@@ -8,9 +8,13 @@ metadata:
 spec:
   group: infra.cluster.x-k8s.io
   names:
+    categories:
+    - cluster-api
     kind: VultrMachineTemplate
     listKind: VultrMachineTemplateList
     plural: vultrmachinetemplates
+    shortNames:
+    - vmt
     singular: vultrmachinetemplate
   scope: Namespaced
   versions:
@@ -40,17 +44,61 @@ spec:
           spec:
             description: VultrMachineTemplateSpec defines the desired state of VultrMachineTemplate
             properties:
-              foo:
-                description: Foo is an example field of VultrMachineTemplate. Edit
-                  vultrmachinetemplate_types.go to remove/update
-                type: string
-            type: object
-          status:
-            description: VultrMachineTemplateStatus defines the observed state of
-              VultrMachineTemplate
+              template:
+                description: |-
+                  INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                properties:
+                  spec:
+                    description: Spec is the specification of the desired behavior
+                      of the machine.
+                    properties:
+                      credentialsRef:
+                        description: |-
+                          CredentialsRef is a reference to a Secret that contains the credentials
+                          to use for provisioning this machine. If not supplied then these
+                          credentials will be used in-order:
+                            1. VultrMachine
+                            2. Owner VultrCluster
+                            3. Controller
+                        properties:
+                          name:
+                            description: name is unique within a namespace to reference
+                              a secret resource.
+                            type: string
+                          namespace:
+                            description: namespace defines the space within which
+                              the secret name must be unique.
+                            type: string
+                        type: object
+                        x-kubernetes-map-type: atomic
+                      osID:
+                        description: The ID of the operating system to be installed
+                        type: integer
+                      planID:
+                        description: PlanID is the id of Vultr VPS plan (VPSPLANID).
+                        type: string
+                      providerID:
+                        description: |-
+                          Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
+                          ProviderID is the unique identifer as specified by the cloud provider.
+                        type: string
+                      region:
+                        description: The Vultr Region (DCID) the cluster lives on
+                        type: string
+                      sshKey:
+                        description: sshKey is the name of the ssh key to attach to
+                          the instance.
+                        type: string
+                    required:
+                    - region
+                    type: object
+                required:
+                - spec
+                type: object
+            required:
+            - template
             type: object
         type: object
     served: true
     storage: true
-    subresources:
-      status: {}

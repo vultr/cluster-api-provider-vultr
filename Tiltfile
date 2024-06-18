@@ -6,6 +6,8 @@ tools_bin = "./hack/tools/bin"
 #Add tools to path
 os.putenv('PATH', os.getenv('PATH') + ':' + tools_bin)
 
+allow_k8s_contexts('vke-8ed4fdcd-b5b5-45d2-8d40-404b48bbab49')
+
 update_settings(k8s_upsert_timeout_secs=60)  # on first tilt up, often can take longer than 30 seconds
 
 # set defaults
@@ -16,7 +18,7 @@ settings = {
     "deploy_cert_manager": True,
     "preload_images_for_kind": True,
     "kind_cluster_name": "capvultr",
-    "capi_version": "v1.7.2",
+    "capi_version": "v1.7.3",
     "cert_manager_version": "v1.14.4",
     "kubernetes_version": "v1.30.0",
 }
@@ -125,8 +127,8 @@ def capvultr():
 
     # add extra_args if they are defined
     if settings.get("extra_args"):
-        do_extra_args = settings.get("extra_args").get("vultr")
-        if do_extra_args:
+        vultr_extra_args = settings.get("extra_args").get("vultr")
+        if vultr_extra_args:
             yaml_dict = decode_yaml_stream(yaml)
             append_arg_for_container_in_deployment(yaml_dict, "capv-controller-manager", "capv-system", "cluster-api-vultr-controller", vultr_extra_args)
             yaml = str(encode_yaml_stream(yaml_dict))
@@ -136,7 +138,7 @@ def capvultr():
     local_resource(
         "manager",
         cmd = 'mkdir -p .tiltbuild;CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags \'-extldflags "-static"\' -o .tiltbuild/manager',
-        deps = ["api", "cloud", "config", "controllers", "exp", "feature", "pkg", "go.mod", "go.sum", "main.go"]
+        deps = ["api", "cloud", "config", "controllers", "go.mod", "go.sum", "main.go"]
     )
 
     dockerfile_contents = "\n".join([
@@ -152,7 +154,7 @@ def capvultr():
     # Set up an image build for the provider. The live update configuration syncs the output from the local_resource
     # build into the container.
     docker_build(
-        ref = "gcr.io/k8s-staging-cluster-api-vultr/cluster-api-vultr-controller",
+        ref = "sjc.vultrcr.com/dragoncity/capv-imagetest",
         context = "./.tiltbuild/",
         dockerfile_contents = dockerfile_contents,
         target = "tilt",
@@ -207,6 +209,6 @@ if settings.get("deploy_cert_manager"):
 
 deploy_capi()
 
-capv()
+capvultr()
 
 waitforsystem()

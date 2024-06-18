@@ -15,24 +15,79 @@ limitations under the License.
 
 package v1
 
+// // ServerStatus represents the status of subscription.
+// type SubscriptionStatus string
+
+// var (
+// 	SubscriptionStatusPending     = SubscriptionStatus("pending")
+// 	SubscriptionStatusActive      = SubscriptionStatus("active")
+// 	SubscriptionStatusClosed      = SubscriptionStatus("closed")
+// 	SubscriptionStatusSuspended   = SubscriptionStatus("suspended")
+// 	SubscriptionStarting          = SubscriptionStatus("starting")
+// 	SubscriptionStopped           = SubscriptionStatus("stopped")
+// 	SubscriptionRunning           = SubscriptionStatus("running")
+// 	SubscriptionStatusNone        = SubscriptionStatus("none")
+// 	SubscriptionStatusLocked      = SubscriptionStatus("locked")
+// 	SubscriptionStatusInstalling  = SubscriptionStatus("installing")
+// 	SubscriptionStatusBooting     = SubscriptionStatus("booting")
+// 	SubscriptionStatusIsoMounting = SubscriptionStatus("isomounting")
+// 	SubscriptionStatusOK          = SubscriptionStatus("ok")
+// 	SubscriptionStatusError 	  = SubscriptionStatus("error")
+// )
+
 // ServerStatus represents the status of subscription.
 type SubscriptionStatus string
 
 var (
-	SubscriptionStatusPending     = SubscriptionStatus("pending")
-	SubscriptionStatusActive      = SubscriptionStatus("active")
-	SubscriptionStatusClosed      = SubscriptionStatus("closed")
-	SubscriptionStatusSuspended   = SubscriptionStatus("suspended")
-	SubscriptionStarting          = SubscriptionStatus("starting")
-	SubscriptionStopped           = SubscriptionStatus("stopped")
-	SubscriptionRunning           = SubscriptionStatus("running")
-	SubscriptionStatusNone        = SubscriptionStatus("none")
-	SubscriptionStatusLocked      = SubscriptionStatus("locked")
-	SubscriptionStatusInstalling  = SubscriptionStatus("installing")
-	SubscriptionStatusBooting     = SubscriptionStatus("booting")
-	SubscriptionStatusIsoMounting = SubscriptionStatus("isomounting")
-	SubscriptionStatusOK          = SubscriptionStatus("ok")
+	SubscriptionStatusPending   = SubscriptionStatus("pending")
+	SubscriptionStatusActive    = SubscriptionStatus("active")
+	SubscriptionStatusSuspended = SubscriptionStatus("suspended")
+	SubscriptionStatusClosed    = SubscriptionStatus("closed")
 )
+
+// PowerStatus represents that the VPS is powerd on or not
+type PowerStatus string
+
+var (
+	PowerStatusStarting = PowerStatus("starting")
+	PowerStatusStopped  = PowerStatus("stopped")
+	PowerStatusRunning  = PowerStatus("running")
+)
+
+// ServerState represents a detail of server state.
+type ServerState string
+
+var (
+	ServerStateNone        = ServerState("none")
+	ServerStateLocked      = ServerState("locked")
+	ServerStateBooting     = ServerState("installingbooting")
+	ServerStateIsoMounting = ServerState("isomounting")
+	ServerStateOK          = ServerState("ok")
+	ServerStateError       = ServerState("error")
+)
+
+// VultrResourceReference is a reference to a Vultr resource.
+type VultrResourceReference struct {
+	// ID of Vultr resource
+	// +optional
+	ResourceID string `json:"resourceId,omitempty"`
+	// Status of a Vultr resource
+	// +optional
+	ResourceSubscriptionStatus SubscriptionStatus `json:"resourceStatus,omitempty"`
+	// Power Status of a Vultr resource
+	// +optional
+	ResourcePowerStatus PowerStatus `json:"powerStatus,omitempty"`
+	// Server state of a Vultr resource
+	// +optional
+	ResourceServerState ServerState `json:"serverState,omitempty"`
+}
+
+// VultrNetworkResource encapsulates Vultr networking resources.
+type VultrNetworkResource struct {
+	// APIServerLoadbalancersRef is the id of apiserver loadbalancers.
+	// +optional
+	APIServerLoadbalancersRef VultrResourceReference `json:"apiServerLoadbalancersRef,omitempty"`
+}
 
 // NetworkSpec encapsulates Vultr networking configuration.
 type NetworkSpec struct {
@@ -100,4 +155,27 @@ type LBFirewallRule struct {
 	Port   int    `json:"port,omitempty"`
 	IPType string `json:"ip_type,omitempty"`
 	Source string `json:"source,omitempty"`
+}
+
+// VultrMachineTemplateResource describes the data needed to create a VultrMachine from a template.
+type VultrMachineTemplateResource struct {
+	// Spec is the specification of the desired behavior of the machine.
+	Spec VultrMachineSpec `json:"spec"`
+}
+
+// VultrClusterTemplateResource describes the data needed to create a VultrCluster from a template.
+type VultrClusterTemplateResource struct {
+	Spec VultrClusterSpec `json:"spec"`
+}
+
+// SecretReference represents a Secret Reference. It has enough information to retrieve secret
+// in any namespace
+// +structType=atomic
+type SecretReference struct {
+	// name is unique within a namespace to reference a secret resource.
+	// +optional
+	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	// namespace defines the space within which the secret name must be unique.
+	// +optional
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
 }

@@ -27,9 +27,10 @@ import (
 
 // VultrClients hold all necessary clients to work with the Vultr API.
 type VultrAPIClients struct {
-	Instance      govultr.InstanceService
+	Instances     govultr.InstanceService
 	LoadBalancers govultr.LoadBalancerService
 	VPC           govultr.VPCService
+	SSHKEYS       govultr.SSHKeyService
 	K8sClient     client.Client
 }
 

@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
@@ -41,15 +40,18 @@ type VultrClusterSpec struct {
 	// +optional
 	Network NetworkSpec `json:"network"`
 
-	// ControlPlaneEndpoint represents the endpoint used to communicate with the
-	// control plane. If ControlPlaneDNS is unset, the Vultr load-balancer IP
-	// of the Kubernetes API Server is used.
+	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
 
-	// CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
-	// supplied then the credentials of the controller will be used.
-	// +optional
-	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+	// // CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
+	// // supplied then the credentials of the controller will be used.
+	// // +optional
+	// CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+
+	// // ControlPlaneLoadbalancer points to the load-balancer IP used for the ControlPlaneEndpoint.
+	// //+optional
+	// // ControlPlaneLoadBalancer *VultrLoadBalancer `json:"loadBalancer,omitempty"
+
 }
 
 // VultrClusterStatus defines the observed state of VultrCluster
@@ -100,11 +102,15 @@ type VultrClusterStatus struct {
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
 
-	//Network VultrNetworkResource `json:"network,omitempty"`
+	Network VultrNetworkResource `json:"network,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:resource:path=vultrclusters,scope=Namespaced,categories=cluster-api
+//+kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".metadata.labels.cluster\\.x-k8s\\.io/cluster-name",description="Cluster to which this VultrCluster belongs"
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.ready",description="Cluster infrastructure is ready for Vultr instances"
+//+kubebuilder:printcolumn:name="Endpoint",type="string",JSONPath=".spec.ControlPlaneEndpoint",description="API Endpoint",priority=1
 
 // VultrCluster is the Schema for the vultrclusters API
 type VultrCluster struct {

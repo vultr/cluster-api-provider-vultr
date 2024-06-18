@@ -27,10 +27,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	cerrs "sigs.k8s.io/cluster-api/errors"
 	clusterutil "sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/annotations"
-	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -39,11 +37,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
-	"github.com/vultr/cluster-api-provider-vultr/util"
+	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
 	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
 )
 
@@ -53,16 +50,8 @@ type VultrClusterReconciler struct {
 	Scheme           *runtime.Scheme
 	ReconcileTimeout time.Duration
 	Recorder         record.EventRecorder
-	VultrApiKey      string
 	WatchFilterValue string
 }
-
-// // SetupWithManager sets up the controller with the Manager.
-// func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
-// 	return ctrl.NewControllerManagedBy(mgr).
-// 		For(&infrav1.VultrCluster{}).
-// 		Complete(r)
-// }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
@@ -88,6 +77,8 @@ func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
+//+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -133,7 +124,7 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Create the cluster scope.
-	clusterScope, err := scope.NewClusterScope(ctx, r.VultrApiKey, scope.ClusterScopeParams{
+	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:       r.Client,
 		Logger:       log,
 		Cluster:      cluster,
@@ -157,73 +148,96 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Handle non-deleted clusters
-	return r.reconcile(ctx, clusterScope, logger)
+	return r.reconcileNormal(ctx, clusterScope)
 
 }
 
-func (r *VultrClusterReconciler) reconcile(ctx context.Context, clusterScope *scope.ClusterScope, logger logr.Logger) (res ctrl.Result, reterr error) {
+func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterScope *scope.ClusterScope) (res ctrl.Result, reterr error) {
 	clusterScope.Info("Reconciling VultrCluster")
-    res = ctrl.Result{}
+	vultrcluster := clusterScope.VultrCluster
+	// If the VultrCluster doesn't have finalizer, add it.
+	if !controllerutil.ContainsFinalizer(vultrcluster, infrav1.ClusterFinalizer) {
+		controllerutil.AddFinalizer(vultrcluster, infrav1.ClusterFinalizer)
 
-	// Always close the scope when exiting this function so we can persist any changes.
-	defer func() {
-		err := clusterScope.Close()
-		if err != nil && reterr == nil {
-			logger.Error(err, "Failed to Patch VultrCluster")
-			reterr = err
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	vlbservice := services.NewService(ctx, clusterScope)
+	apiServerLoadbalancer := clusterScope.APIServerLoadbalancers()
+
+	apiServerLoadbalancerRef := clusterScope.APIServerLoadbalancersRef()
+	vlbID := apiServerLoadbalancerRef.ResourceID
+
+	if apiServerLoadbalancer.ID != "" {
+		vlbID = apiServerLoadbalancer.ID
+	}
+
+	loadbalancer, err := vlbservice.GetLoadBalancer(vlbID)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if loadbalancer == nil {
+		loadbalancer, err = vlbservice.CreateLoadBalancer(apiServerLoadbalancer)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create load balancers for VultrCluster %s/%s", vultrcluster.Namespace, vultrcluster.Name)
 		}
-	}()
 
-	//Handle deleted clusters
-	if !clusterScope.VultrCluster.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, clusterScope)
+		r.Recorder.Eventf(vultrcluster, corev1.EventTypeNormal, "LoadBalancerCreated", "Created new load balancers - %s", loadbalancer.Label)
 	}
 
-	if err := clusterScope.AddFinalizer(ctx); err != nil {
-		return res, err
+	apiServerLoadbalancerRef.ResourceID = loadbalancer.ID
+	apiServerLoadbalancerRef.ResourceSubscriptionStatus = infrav1.SubscriptionStatus(loadbalancer.Status)
+	apiServerLoadbalancer.ID = loadbalancer.ID
+
+	if apiServerLoadbalancerRef.ResourcePowerStatus != infrav1.PowerStatusRunning && loadbalancer.IPV4 == "" {
+		clusterScope.Info("Waiting on API server Global IP Address")
+		return reconcile.Result{RequeueAfter: 15 * time.Second}, nil
 	}
 
-	// Create
-	if clusterScope.VultrCluster.Spec.ControlPlaneEndpoint.Host == "" {
-		if err := r.reconcileCreate(ctx, logger, clusterScope); err != nil {
-			return res, err
-		}
-		r.Recorder.Event(clusterScope.VultrCluster, corev1.EventTypeNormal, string(clusterv1.ReadyCondition), "Load balancer is ready")
-	}
+	r.Recorder.Eventf(vultrcluster, corev1.EventTypeNormal, "LoadBalancerReady", "LoadBalancer got an IP Address - %s", loadbalancer.IPV4)
 
+	controlPlaneEndpoint := loadbalancer.IPV4
+
+	clusterScope.SetControlPlaneEndpoint(clusterv1.APIEndpoint{
+		Host: controlPlaneEndpoint,
+		Port: int32(apiServerLoadbalancer.HealthCheck.Port),
+	})
+
+	clusterScope.Info("Set VultrCluster status to ready")
+	clusterScope.SetReady()
 	clusterScope.VultrCluster.Status.Ready = true
-	conditions.MarkTrue(clusterScope.VultrCluster, clusterv1.ReadyCondition)
-
-	return res, nil
-
+	r.Recorder.Eventf(vultrcluster, corev1.EventTypeNormal, "VultrClusterReady", "VultrCluster %s - has ready status", clusterScope.Name())
+	return reconcile.Result{}, nil
 }
 
 func (r *VultrClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
 	clusterScope.Info("Reconciling delete VultrCluster")
 	vultrcluster := clusterScope.VultrCluster
 
-	//TODO
+	vlbservice := services.NewService(ctx, clusterScope)
+	apiServerLoadbalancerRef := clusterScope.APIServerLoadbalancersRef()
+	vlbID := apiServerLoadbalancerRef.ResourceID
+
+	loadbalancer, err := vlbservice.GetLoadBalancer(vlbID)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if loadbalancer == nil {
+		clusterScope.V(2).Info("Unable to locate load balancer")
+		r.Recorder.Eventf(vultrcluster, corev1.EventTypeWarning, "NoLoadBalancerFound", "Unable to find matching load balancer")
+		controllerutil.RemoveFinalizer(vultrcluster, infrav1.ClusterFinalizer)
+		return reconcile.Result{}, nil
+	}
+
+	if err := vlbservice.DeleteLoadBalancer(loadbalancer.ID); err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "error deleting load balancer for VultrCluster %s/%s", vultrcluster.Namespace, vultrcluster.Name)
+	}
+
+	r.Recorder.Eventf(vultrcluster, corev1.EventTypeNormal, "LoadBalancerDeleted", "Deleted LoadBalancer - %s", loadbalancer.Label)
 
 	// Cluster is deleted so remove the finalizer.
 	controllerutil.RemoveFinalizer(vultrcluster, infrav1.ClusterFinalizer)
 	return reconcile.Result{}, nil
-}
-
-func setFailureReason(clusterScope *scope.ClusterScope, failureReason cerrs.ClusterStatusError, err error, vcr *VultrClusterReconciler) {
-	clusterScope.VultrCluster.Status.FailureReason = util.Pointer(failureReason)
-	clusterScope.VultrCluster.Status.FailureMessage = util.Pointer(err.Error())
-
-	conditions.MarkFalse(clusterScope.VultrCluster, clusterv1.ReadyCondition, string(failureReason), clusterv1.ConditionSeverityError, "%s", err.Error())
-
-	vcr.Recorder.Event(clusterScope.VultrCluster, corev1.EventTypeWarning, string(failureReason), err.Error())
-}
-
-func (r *VultrClusterReconciler) reconcileCreate(ctx context.Context, logger logr.Logger, clusterScope *scope.ClusterScope) error {
-	if err := clusterScope.AddCredentialsRefFinalizer(ctx); err != nil {
-		logger.Error(err, "failed to update credentials finalizer")
-		setFailureReason(clusterScope, cerrs.CreateClusterError, err, r)
-		return err
-	}
-
-	return nil
 }

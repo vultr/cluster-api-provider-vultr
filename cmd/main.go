@@ -17,7 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"errors"
 	"flag"
 	"os"
 
@@ -30,12 +29,13 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
-	"github.com/vultr/cluster-api-provider-vultr/internal/controller"
+	vcontroller "github.com/vultr/cluster-api-provider-vultr/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -52,7 +52,7 @@ func init() {
 }
 
 func main() {
-	var vultrApiKey string = os.Getenv("VULTR_API_KEY")
+	//var vultrApiKey string = os.Getenv("VULTR_API_KEY")
 
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -61,7 +61,7 @@ func main() {
 	var enableHTTP2 bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":9440", "The address the probe endpoint binds to.")
 
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -79,31 +79,7 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	//Check ENV variables
-	if vultrApiKey == "" {
-		setupLog.Error(errors.New("failed to get VULTR_API_KEY environment variable"), "unable to start operator")
-		os.Exit(1)
-	}
-
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancelation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	// disableHTTP2 := func(c *tls.Config) {
-	// 	setupLog.Info("disabling http/2")
-	// 	c.NextProtos = []string{"http/1.1"}
-	// }
-
-	// tlsOpts := []func(*tls.Config){}
-	// if !enableHTTP2 {
-	// 	tlsOpts = append(tlsOpts, disableHTTP2)
-	// }
-
-	// webhookServer := webhook.NewServer(webhook.Options{
-	// 	TLSOpts: tlsOpts,
-	// })
+	ctx := ctrl.SetupSignalHandler()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
@@ -133,19 +109,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.VultrClusterReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		VultrApiKey: vultrApiKey,
+	if err = (&vcontroller.VultrClusterReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}
-	if err = (&controller.VultrMachineReconciler{
-		Client:      mgr.GetClient(),
-		Scheme:      mgr.GetScheme(),
-		VultrApiKey: vultrApiKey,
-	}).SetupWithManager(mgr); err != nil {
+	if err = (&vcontroller.VultrMachineReconciler{
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor("vultrmachine-controller"),
+	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrMachine")
 		os.Exit(1)
 	}
@@ -161,7 +136,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
