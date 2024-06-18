@@ -1,41 +1,14 @@
-
-#####################################################################
-# top-level Makefile for cluster-api-provider-vultr
-#####################################################################
-
-# Define Docker related variables. Releases should modify and double check these vars.
-REGISTRY ?= ghcr.io
-ORG ?= vultr
-STAGING_REGISTRY := g/k8s-staging-cluster-api-vu;tr
-PROD_REGISTRY := registry.k8s.io/cluster-api-vultr
-IMAGE_NAME ?= cluster-api-vultr-controller
-TAG ?= dev
-ARCH ?= amd64
-ALL_ARCH = amd64 arm arm64 ppc64le s390x
-CONTROLLER_IMG ?= $(REGISTRY)/$(ORG)/$(IMAGE_NAME):$(TAG)
-
-
+# Image URL to use all building/pushing image targets
+IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.30.0
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
-# ifeq (,$(shell go env GOBIN))
-# GOBIN=$(shell go env GOPATH)/bin
-# else
-# GOBIN=$(shell go env GOBIN)
-# endif
-
-GOPATH  := $(shell go env GOPATH)
-GOARCH  := $(shell go env GOARCH)
-GOOS    := $(shell go env GOOS)
-GOPROXY := $(shell go env GOPROXY)
-ifeq ($(GOPROXY),)
-GOPROXY := https://proxy.golang.org
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
 endif
-export GOPROXY
-
-# Active module mode, as we use go modules to manage dependencies
-export GO111MODULE=on
 
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
@@ -47,10 +20,6 @@ CONTAINER_TOOL ?= docker
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
-
-#####################################################################
-##@ Build All
-#####################################################################
 
 .PHONY: all
 all: build
@@ -155,11 +124,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default >> dist/install.yaml
 
-
-
-## --------------------------------------
 ##@ Deployment
-## --------------------------------------
 
 ifndef ignore-not-found
   ignore-not-found = false
@@ -221,65 +186,6 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
-
-
-
-## --------------------------------------
-##@ Release
-## --------------------------------------
-
-RELEASE_TAG := $(shell git describe --abbrev=0 2>/dev/null)
-RELEASE_DIR := out
-
-$(RELEASE_DIR):
-	mkdir -p $(RELEASE_DIR)/
-
-.PHONY: release
-release: clean-release  ## Builds and push container images using the latest git tag for the commit.
-	@if [ -z "${RELEASE_TAG}" ]; then echo "RELEASE_TAG is not set"; exit 1; fi
-	@if ! [ -z "$$(git status --porcelain)" ]; then echo "Your local git repository contains uncommitted changes, use git clean before proceeding."; exit 1; fi
-	git checkout "${RELEASE_TAG}"
-	# Set the manifest image to the production bucket.
-	$(MAKE) set-manifest-image MANIFEST_IMG=$(PROD_REGISTRY)/$(IMAGE_NAME) MANIFEST_TAG=$(RELEASE_TAG)
-	$(MAKE) set-manifest-pull-policy PULL_POLICY=IfNotPresent
-	$(MAKE) release-manifests
-	$(MAKE) release-templates
-
-.PHONY: release-manifests
-release-manifests: $(KUSTOMIZE) $(RELEASE_DIR) ## Builds the manifests to publish with a release
-	cp metadata.yaml $(RELEASE_DIR)/metadata.yaml
-	kustomize build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
-
-.PHONY: release-templates
-release-templates: $(RELEASE_DIR)
-	cp templates/cluster-template* $(RELEASE_DIR)/
-
-.PHONY: release
-release-binary: $(RELEASE_DIR)
-	docker run \
-		--rm \
-		-e CGO_ENABLED=0 \
-		-e GOOS=$(GOOS) \
-		-e GOARCH=$(GOARCH) \
-		-v "$$(pwd):/workspace" \
-		-w /workspace \
-		golang:1.20.8 \
-		go build -a -trimpath -ldflags '-extldflags "-static"' \
-		-o $(RELEASE_DIR)/$(notdir $(RELEASE_BINARY))-$(GOOS)-$(GOARCH) $(RELEASE_BINARY)
-
-.PHONY: release-staging
-release-staging: ## Builds and push container images to the staging bucket.
-	REGISTRY=$(STAGING_REGISTRY) $(MAKE) docker-build-all docker-push-all release-alias-tag
-
-RELEASE_ALIAS_TAG=$(PULL_BASE_REF)
-
-.PHONY: release-alias-tag
-release-alias-tag: # Adds the tag to the last build tag.
-	gcloud container images add-tag $(CONTROLLER_IMG):$(TAG) $(CONTROLLER_IMG):$(RELEASE_ALIAS_TAG)
-
-.PHONY: release-notes
-release-notes: $(RELEASE_NOTES)
-	$(RELEASE_NOTES)
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
