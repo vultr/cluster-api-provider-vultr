@@ -18,11 +18,7 @@ limitations under the License.
 package scope
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/vultr/govultr/v3"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // VultrClients hold all necessary clients to work with the Vultr API.
@@ -31,19 +27,5 @@ type VultrAPIClients struct {
 	LoadBalancers govultr.LoadBalancerService
 	VPC           govultr.VPCService
 	SSHKEYS       govultr.SSHKeyService
-	K8sClient     client.Client
-}
-
-func (v *VultrAPIClients) Update(ctx context.Context, obj client.Object) error {
-	if err := v.K8sClient.Update(ctx, obj); err != nil {
-		return fmt.Errorf("failed to update object: %w", err)
-	}
-	return nil
-}
-
-func (v *VultrAPIClients) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-	if err := v.K8sClient.Get(ctx, key, obj); err != nil {
-		return fmt.Errorf("failed to get object: %w", err)
-	}
-	return nil
+	//K8sClient     client.Client
 }
