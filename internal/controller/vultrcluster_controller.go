@@ -74,9 +74,9 @@ func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 

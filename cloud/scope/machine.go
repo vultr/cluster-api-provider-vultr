@@ -63,7 +63,7 @@ type MachineScope struct {
 
 // NewMachineScope creates a new Scope from the supplied parameters.
 // This is meant to be called for each reconcile iteration
-func NewMachineScope(ctx context.Context, apiKey string, params MachineScopeParams) (*MachineScope, error) {
+func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 	if params.Client == nil {
 		return nil, errors.New("Client is required when creating a MachineScope")
 	}
@@ -84,7 +84,7 @@ func NewMachineScope(ctx context.Context, apiKey string, params MachineScopePara
 	// tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
 	// vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
 
-	vultrClient, err := CreateVultrClient(apiKey)
+	vultrClient, err := CreateVultrClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Vultr Client: %w", err)
 	}

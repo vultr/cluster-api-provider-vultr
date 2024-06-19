@@ -4,36 +4,43 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: vultrclusters.infra.cluster.x-k8s.io
+  name: vultrmachines.infrastructure.cluster.x-k8s.io
 spec:
-  group: infra.cluster.x-k8s.io
+  group: infrastructure.cluster.x-k8s.io
   names:
     categories:
     - cluster-api
-    kind: VultrCluster
-    listKind: VultrClusterList
-    plural: vultrclusters
-    singular: vultrcluster
+    kind: VultrMachine
+    listKind: VultrMachineList
+    plural: vultrmachines
+    singular: vultrmachine
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - description: Cluster to which this VultrCluster belongs
+    - description: Cluster to which this VultrMachine belongs
       jsonPath: .metadata.labels.cluster\.x-k8s\.io/cluster-name
       name: Cluster
       type: string
-    - description: Cluster infrastructure is ready for Vultr instances
+    - description: Vultr instance state
+      jsonPath: .status.subscriptionStatus
+      name: State
+      type: string
+    - description: Machine ready status
       jsonPath: .status.ready
       name: Ready
       type: string
-    - description: API Endpoint
-      jsonPath: .spec.ControlPlaneEndpoint
-      name: Endpoint
-      priority: 1
+    - description: Vultr instance ID
+      jsonPath: .spec.providerID
+      name: InstanceID
+      type: string
+    - description: Machine object which owns with this VultrMachine
+      jsonPath: .metadata.ownerReferences[?(@.kind=="Machine")].name
+      name: Machine
       type: string
     name: v1
     schema:
       openAPIV3Schema:
-        description: VultrCluster is the Schema for the vultrclusters API
+        description: VultrMachine is the Schema for the vultrmachines API
         properties:
           apiVersion:
             description: |-
@@ -53,137 +60,68 @@ spec:
           metadata:
             type: object
           spec:
-            description: VultrClusterSpec defines the desired state of VultrCluster
+            description: VultrMachineSpec defines the desired state of VultrMachine
             properties:
-              controlPlaneEndpoint:
-                description: ControlPlaneEndpoint represents the endpoint used to
-                  communicate with the control plane.
+              credentialsRef:
+                description: |-
+                  CredentialsRef is a reference to a Secret that contains the credentials
+                  to use for provisioning this machine. If not supplied then these
+                  credentials will be used in-order:
+                    1. VultrMachine
+                    2. Owner VultrCluster
+                    3. Controller
                 properties:
-                  host:
-                    description: The hostname on which the API server is serving.
+                  name:
+                    description: name is unique within a namespace to reference a
+                      secret resource.
                     type: string
-                  port:
-                    description: The port on which the API server is serving.
-                    format: int32
-                    type: integer
-                required:
-                - host
-                - port
+                  namespace:
+                    description: namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
                 type: object
-              network:
-                description: NetworkSpec encapsulates all things related to Vultr
-                  network.
-                properties:
-                  apiServerLoadbalancers:
-                    description: Configures an API Server loadbalancers
-                    properties:
-                      date_created:
-                        type: string
-                      firewall_rules:
-                        items:
-                          description: LBFirewallRule represents a single firewall
-                            rule
-                          properties:
-                            id:
-                              type: string
-                            ip_type:
-                              type: string
-                            port:
-                              type: integer
-                            source:
-                              type: string
-                          type: object
-                        type: array
-                      forwarding_rules:
-                        items:
-                          description: ForwardingRule represent a single forwarding
-                            rule
-                          properties:
-                            backend_port:
-                              type: integer
-                            backend_protocol:
-                              type: string
-                            frontend_port:
-                              type: integer
-                            frontend_protocol:
-                              type: string
-                            id:
-                              type: string
-                          type: object
-                        type: array
-                      generic_info:
-                        description: GenericInfo represents generic configuration
-                          of your load balancer
-                        properties:
-                          balancing_algorithm:
-                            type: string
-                          private_network:
-                            type: string
-                          proxy_protocol:
-                            type: boolean
-                          ssl_redirect:
-                            type: boolean
-                          sticky_sessions:
-                            description: StickySessions represents cookie for your
-                              load balancer
-                            properties:
-                              cookie_name:
-                                type: string
-                            type: object
-                          vpc:
-                            type: string
-                        type: object
-                      has_ssl:
-                        type: boolean
-                      health_check:
-                        description: HealthCheck represents your health check configuration
-                          for your load balancer.
-                        properties:
-                          check_interval:
-                            type: integer
-                          healthy_threshold:
-                            type: integer
-                          path:
-                            type: string
-                          port:
-                            type: integer
-                          protocol:
-                            type: string
-                          response_timeout:
-                            type: integer
-                          unhealthy_threshold:
-                            type: integer
-                        type: object
-                      id:
-                        type: string
-                      instances:
-                        items:
-                          type: string
-                        type: array
-                      ipv4:
-                        type: string
-                      ipv6:
-                        type: string
-                      label:
-                        type: string
-                      nodes:
-                        type: integer
-                      region:
-                        type: string
-                      status:
-                        type: string
-                    type: object
-                type: object
+                x-kubernetes-map-type: atomic
+              osID:
+                description: The ID of the operating system to be installed
+                type: integer
+              planID:
+                description: PlanID is the id of Vultr VPS plan (VPSPLANID).
+                type: string
+              providerID:
+                description: |-
+                  Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
+                  ProviderID is the unique identifer as specified by the cloud provider.
+                type: string
               region:
                 description: The Vultr Region (DCID) the cluster lives on
                 type: string
+              sshKey:
+                description: sshKey is the name of the ssh key to attach to the instance.
+                type: string
             required:
-            - controlPlaneEndpoint
             - region
             type: object
           status:
-            description: VultrClusterStatus defines the observed state of VultrCluster
+            description: VultrMachineStatus defines the observed state of VultrMachine
             properties:
+              addresses:
+                description: Addresses contains the Vultr instance associated addresses.
+                items:
+                  description: MachineAddress contains information for the node's
+                    address.
+                  properties:
+                    address:
+                      description: The machine address.
+                      type: string
+                    type:
+                      description: Machine address type, one of Hostname, ExternalIP,
+                        InternalIP, ExternalDNS or InternalDNS.
+                      type: string
+                  required:
+                  - address
+                  - type
+                  type: object
+                type: array
               conditions:
                 description: Conditions defines current service state of the VultrCluster.
                 items:
@@ -271,30 +209,19 @@ spec:
                   can be added as events to the Machine object and/or logged in the
                   controller's output.
                 type: string
-              network:
-                description: VultrNetworkResource encapsulates Vultr networking resources.
-                properties:
-                  apiServerLoadbalancersRef:
-                    description: APIServerLoadbalancersRef is the id of apiserver
-                      loadbalancers.
-                    properties:
-                      powerStatus:
-                        description: Power Status of a Vultr resource
-                        type: string
-                      resourceId:
-                        description: ID of Vultr resource
-                        type: string
-                      resourceStatus:
-                        description: Status of a Vultr resource
-                        type: string
-                      serverState:
-                        description: Server state of a Vultr resource
-                        type: string
-                    type: object
-                type: object
+              powerStatus:
+                description: PowerStatus represents that the VPS is powerd on or not
+                type: string
               ready:
-                description: Ready denotes that the cluster (infrastructure) is ready
+                description: Ready represents the infrastructure is ready to be used
+                  or not.
                 type: boolean
+              serverState:
+                description: ServerState represents a detail of server state.
+                type: string
+              subscriptionStatus:
+                description: ServerStatus represents the status of subscription.
+                type: string
             required:
             - ready
             type: object

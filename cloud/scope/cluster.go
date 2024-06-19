@@ -43,7 +43,7 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 	}
 
 	// Create the Vultr client.
-	vultrClient, err := CreateVultrClient(apiKey)
+	vultrClient, err := CreateVultrClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Vultr Client: %w", err)
 	}

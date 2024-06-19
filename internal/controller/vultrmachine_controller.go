@@ -51,9 +51,9 @@ type VultrMachineReconciler struct {
 	Recorder         record.EventRecorder
 }
 
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrmachines,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrmachines/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrmachines/finalizers,verbs=update
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrmachines,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrmachines/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrmachines/finalizers,verbs=update
 
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;watch;list
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;watch;list
@@ -118,13 +118,6 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	log = r.Log.WithValues("vultrCluster", vultrCluster.Name)
 
-	// // Retrieve the API key from environment variables
-	// apiKey := os.Getenv("VULTR_API_KEY")
-	// if apiKey == "" {
-	// 	return ctrl.Result{}, errors.New("environment variable VULTR_API_KEY is required")
-	// }
-
-	// Create the cluster scope
 	// Create the cluster scope.
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
 		Client:       r.Client,
@@ -137,7 +130,7 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Create the machine scope
-	machineScope, err := scope.NewMachineScope(ctx, r.VultrApiKey, scope.MachineScopeParams{
+	machineScope, err := scope.NewMachineScope(scope.MachineScopeParams{
 		Client:       r.Client,
 		Logger:       log,
 		Cluster:      cluster,
@@ -161,7 +154,6 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	return r.reconcileNormal(ctx, machineScope, clusterScope)
-	//return ctrl.Result{}, nil
 
 }
 
@@ -205,6 +197,9 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Label)
 	}
 
+	machineScope.SetProviderID(instance.ID)
+	machineScope.SetInstanceStatus(infrav1.SubscriptionStatus(instance.Status))
+
 	// Register the finalizer immediately to avoid orphaning Vultr resources on delete.
 	if err := machineScope.PatchObject(ctx); err != nil {
 		return reconcile.Result{}, err
@@ -236,37 +231,6 @@ func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineSco
 	controllerutil.RemoveFinalizer(vultrmachine, infrav1.MachineFinalizer)
 	return reconcile.Result{}, nil
 }
-
-// // SetupWithManager sets up the controller with the Manager.
-// func (r *VultrMachineReconciler) SetupWithManager(mgr ctrl.Manager) error {
-// 	vultrMachineMapper, err := clusterutil.ClusterToTypedObjectsMapper(r.Client, &infrav1.VultrMachineList{}, mgr.GetScheme())
-// 	if err != nil {
-// 		return fmt.Errorf("failed to create mapper for VultrMachines: %w", err)
-// 	}
-
-// 	err = ctrl.NewControllerManagedBy(mgr).
-// 		For(&infrav1.VultrMachine{}).
-// 		Watches(
-// 			&clusterv1.Machine{},
-// 			handler.EnqueueRequestsFromMapFunc(clusterutil.MachineToInfrastructureMapFunc(infrav1.GroupVersion.WithKind("VultrMachine"))),
-// 		).
-// 		Watches(
-// 			&infrav1.VultrCluster{},
-// 			handler.EnqueueRequestsFromMapFunc(r.VultrClusterToVultrMachines(mgr.GetLogger())),
-// 		).
-// 		Watches(
-// 			&clusterv1.Cluster{},
-// 			handler.EnqueueRequestsFromMapFunc(vultrMachineMapper),
-// 			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
-// 		).
-// 		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
-// 		Complete(r)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to build controller: %w", err)
-// 	}
-
-// 	return nil
-// }
 
 func (r *VultrMachineReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
 	c, err := ctrl.NewControllerManagedBy(mgr).
