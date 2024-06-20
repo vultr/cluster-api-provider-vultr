@@ -167,7 +167,6 @@ spec:
                 description: The Vultr Region (DCID) the cluster lives on
                 type: string
             required:
-            - controlPlaneEndpoint
             - region
             type: object
         type: object

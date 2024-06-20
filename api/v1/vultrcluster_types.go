@@ -41,6 +41,7 @@ type VultrClusterSpec struct {
 	Network NetworkSpec `json:"network"`
 
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
+	// +optional
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
 
 	// // CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
