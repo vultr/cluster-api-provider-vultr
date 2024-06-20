@@ -164,6 +164,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 
 	vlbservice := services.NewService(ctx, clusterScope)
 	apiServerLoadbalancer := clusterScope.APIServerLoadbalancers()
+	apiServerLoadbalancer.ApplyDefaults()
 
 	apiServerLoadbalancerRef := clusterScope.APIServerLoadbalancersRef()
 	vlbID := apiServerLoadbalancerRef.ResourceID

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -44,11 +45,11 @@ import (
 // VultrMachineReconciler reconciles a VultrMachine object
 type VultrMachineReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
-	Log              logr.Logger
-	VultrApiKey      string
-	WatchFilterValue string
+	Scheme *runtime.Scheme
+	Log    logr.Logger
+	//WatchFilterValue string
 	Recorder         record.EventRecorder
+	ReconcileTimeout time.Duration
 }
 
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrmachines,verbs=get;list;watch;create;update;patch;delete
