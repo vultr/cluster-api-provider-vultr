@@ -175,11 +175,22 @@ func (in *VultrLoadBalancer) ApplyDefaults() {
 		in.HealthCheck.HealthyThreshold = DefaultLBHealthCheckHealthyThreshold
 	}
 
+	// Set default for GenericInfo if it is not initialized
+	if in.GenericInfo == nil {
+		in.GenericInfo = &GenericInfo{}
+	}
+
+	// Set default GenericInfo values if they are not set
+	if in.GenericInfo.BalancingAlgorithm == "" {
+		in.GenericInfo.BalancingAlgorithm = DefaultLBAlgorithm
+	}
+
 }
 
 var (
 	// Default values for VultrLoadBalancer fields
 	DefaultLBPort                          = 6443
+	DefaultLBAlgorithm                     = "roundrobin"
 	DefaultLBHealthCheckInterval           = 15
 	DefaultLBHealthCheckTimeout            = 5
 	DefaultLBHealthCheckUnhealthyThreshold = 5
