@@ -184,7 +184,6 @@ func (in *VultrLoadBalancer) ApplyDefaults() {
 	if in.GenericInfo.BalancingAlgorithm == "" {
 		in.GenericInfo.BalancingAlgorithm = DefaultLBAlgorithm
 	}
-
 }
 
 var (
