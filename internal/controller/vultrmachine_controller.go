@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
@@ -35,19 +34,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
+	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
 )
 
 // VultrMachineReconciler reconciles a VultrMachine object
 type VultrMachineReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Log    logr.Logger
-	//WatchFilterValue string
 	Recorder         record.EventRecorder
 	ReconcileTimeout time.Duration
 }
@@ -72,17 +68,18 @@ type VultrMachineReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 
 func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
-	log := r.Log.WithValues("vultrmachine", req.NamespacedName)
+	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
+	defer cancel()
+
+	log := ctrl.LoggerFrom(ctx)
 
 	// Fetch the VultrMachine.
 	vultrMachine := &infrav1.VultrMachine{}
-	err := r.Get(ctx, req.NamespacedName, vultrMachine)
-	if err != nil {
+	if err := r.Get(ctx, req.NamespacedName, vultrMachine); err != nil {
 		if apierrors.IsNotFound(err) {
-			//return ctrl.Result{}, nil
-			log.Error(err, "Failed to fetch VultrMachine")
+			return reconcile.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return reconcile.Result{}, err
 	}
 
 	// Fetch the Machine.
@@ -95,16 +92,12 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, nil
 	}
 
-	log = r.Log.WithValues("VultrMachine", machine.Name)
-
 	// Fetch the Cluster.
 	cluster, err := util.GetClusterFromMetadata(ctx, r.Client, machine.ObjectMeta)
 	if err != nil {
 		log.Info("Machine is missing cluster label or cluster does not exist")
 		return ctrl.Result{}, nil
 	}
-
-	log = r.Log.WithValues("cluster", cluster.Name)
 
 	// Fetch the VultrCluster.
 	vultrCluster := &infrav1.VultrCluster{}
@@ -116,8 +109,6 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		log.Info("VultrCluster is not available yet.")
 		return ctrl.Result{}, nil
 	}
-
-	log = r.Log.WithValues("vultrCluster", vultrCluster.Name)
 
 	// Create the cluster scope.
 	clusterScope, err := scope.NewClusterScope(scope.ClusterScopeParams{
