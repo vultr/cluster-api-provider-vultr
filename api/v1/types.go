@@ -15,26 +15,6 @@ limitations under the License.
 
 package v1
 
-// // ServerStatus represents the status of subscription.
-// type SubscriptionStatus string
-
-// var (
-// 	SubscriptionStatusPending     = SubscriptionStatus("pending")
-// 	SubscriptionStatusActive      = SubscriptionStatus("active")
-// 	SubscriptionStatusClosed      = SubscriptionStatus("closed")
-// 	SubscriptionStatusSuspended   = SubscriptionStatus("suspended")
-// 	SubscriptionStarting          = SubscriptionStatus("starting")
-// 	SubscriptionStopped           = SubscriptionStatus("stopped")
-// 	SubscriptionRunning           = SubscriptionStatus("running")
-// 	SubscriptionStatusNone        = SubscriptionStatus("none")
-// 	SubscriptionStatusLocked      = SubscriptionStatus("locked")
-// 	SubscriptionStatusInstalling  = SubscriptionStatus("installing")
-// 	SubscriptionStatusBooting     = SubscriptionStatus("booting")
-// 	SubscriptionStatusIsoMounting = SubscriptionStatus("isomounting")
-// 	SubscriptionStatusOK          = SubscriptionStatus("ok")
-// 	SubscriptionStatusError 	  = SubscriptionStatus("error")
-// )
-
 // ServerStatus represents the status of subscription.
 type SubscriptionStatus string
 
@@ -168,14 +148,50 @@ type VultrClusterTemplateResource struct {
 	Spec VultrClusterSpec `json:"spec"`
 }
 
-// SecretReference represents a Secret Reference. It has enough information to retrieve secret
-// in any namespace
-// +structType=atomic
-type SecretReference struct {
-	// name is unique within a namespace to reference a secret resource.
-	// +optional
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// namespace defines the space within which the secret name must be unique.
-	// +optional
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+// ApplyDefaults sets default values for VultrLoadBalancer fields if they are not set.
+func (in *VultrLoadBalancer) ApplyDefaults() {
+	// Set default for HealthCheck if it is not initialized
+	if in.HealthCheck == nil {
+		in.HealthCheck = &HealthCheck{}
+	}
+
+	// Set default HealthCheck values if they are not set
+	if in.HealthCheck.Protocol == "" {
+		in.HealthCheck.Protocol = "tcp"
+	}
+	if in.HealthCheck.Port == 0 {
+		in.HealthCheck.Port = DefaultLBPort
+	}
+	if in.HealthCheck.CheckInterval == 0 {
+		in.HealthCheck.CheckInterval = DefaultLBHealthCheckInterval
+	}
+	if in.HealthCheck.ResponseTimeout == 0 {
+		in.HealthCheck.ResponseTimeout = DefaultLBHealthCheckTimeout
+	}
+	if in.HealthCheck.UnhealthyThreshold == 0 {
+		in.HealthCheck.UnhealthyThreshold = DefaultLBHealthCheckUnhealthyThreshold
+	}
+	if in.HealthCheck.HealthyThreshold == 0 {
+		in.HealthCheck.HealthyThreshold = DefaultLBHealthCheckHealthyThreshold
+	}
+
+	// Set default for GenericInfo if it is not initialized
+	if in.GenericInfo == nil {
+		in.GenericInfo = &GenericInfo{}
+	}
+
+	// Set default GenericInfo values if they are not set
+	if in.GenericInfo.BalancingAlgorithm == "" {
+		in.GenericInfo.BalancingAlgorithm = DefaultLBAlgorithm
+	}
 }
+
+var (
+	// Default values for VultrLoadBalancer fields
+	DefaultLBPort                          = 6443
+	DefaultLBAlgorithm                     = "roundrobin"
+	DefaultLBHealthCheckInterval           = 15
+	DefaultLBHealthCheckTimeout            = 5
+	DefaultLBHealthCheckUnhealthyThreshold = 5
+	DefaultLBHealthCheckHealthyThreshold   = 5
+)

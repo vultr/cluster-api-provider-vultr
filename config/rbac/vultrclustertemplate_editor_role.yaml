@@ -12,7 +12,7 @@ metadata:
   name: vultrclustertemplate-editor-role
 rules:
 - apiGroups:
-  - infra.cluster.x-k8s.io
+  - infrastructure.cluster.x-k8s.io
   resources:
   - vultrclustertemplates
   verbs:
@@ -24,7 +24,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - infra.cluster.x-k8s.io
+  - infrastructure.cluster.x-k8s.io
   resources:
   - vultrclustertemplates/status
   verbs:

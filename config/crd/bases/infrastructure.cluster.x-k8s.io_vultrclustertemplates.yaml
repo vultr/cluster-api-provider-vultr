@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.14.0
-  name: vultrclustertemplates.infra.cluster.x-k8s.io
+  name: vultrclustertemplates.infrastructure.cluster.x-k8s.io
 spec:
-  group: infra.cluster.x-k8s.io
+  group: infrastructure.cluster.x-k8s.io
   names:
     categories:
     - cluster-api
@@ -167,7 +167,6 @@ spec:
                 description: The Vultr Region (DCID) the cluster lives on
                 type: string
             required:
-            - controlPlaneEndpoint
             - region
             type: object
         type: object

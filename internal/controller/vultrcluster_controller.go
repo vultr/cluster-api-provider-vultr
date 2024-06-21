@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -74,9 +75,9 @@ func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infra.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
@@ -164,6 +165,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 
 	vlbservice := services.NewService(ctx, clusterScope)
 	apiServerLoadbalancer := clusterScope.APIServerLoadbalancers()
+	apiServerLoadbalancer.ApplyDefaults()
 
 	apiServerLoadbalancerRef := clusterScope.APIServerLoadbalancersRef()
 	vlbID := apiServerLoadbalancerRef.ResourceID
@@ -179,8 +181,9 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 
 	if loadbalancer == nil {
 		loadbalancer, err = vlbservice.CreateLoadBalancer(apiServerLoadbalancer)
+		lbPayload, _ := json.Marshal(apiServerLoadbalancer)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to create load balancers for VultrCluster %s/%s", vultrcluster.Namespace, vultrcluster.Name)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create load balancers for VultrCluster %s/%s, payload: %s", vultrcluster.Namespace, vultrcluster.Name, string(lbPayload))
 		}
 
 		r.Recorder.Eventf(vultrcluster, corev1.EventTypeNormal, "LoadBalancerCreated", "Created new load balancers - %s", loadbalancer.Label)

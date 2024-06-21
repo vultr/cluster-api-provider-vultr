@@ -2,10 +2,10 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-- bases/infra.cluster.x-k8s.io_vultrclusters.yaml
-- bases/infra.cluster.x-k8s.io_vultrmachines.yaml
-- bases/infra.cluster.x-k8s.io_vultrclustertemplates.yaml
-- bases/infra.cluster.x-k8s.io_vultrmachinetemplates.yaml
+- bases/infrastructure.cluster.x-k8s.io_vultrclusters.yaml
+- bases/infrastructure.cluster.x-k8s.io_vultrmachines.yaml
+- bases/infrastructure.cluster.x-k8s.io_vultrclustertemplates.yaml
+- bases/infrastructure.cluster.x-k8s.io_vultrmachinetemplates.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
  
 # patches:

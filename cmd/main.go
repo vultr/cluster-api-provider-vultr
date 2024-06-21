@@ -19,11 +19,13 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -44,6 +46,10 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+var (
+	reconcileTimeout time.Duration
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(capi.AddToScheme(scheme))
@@ -52,7 +58,6 @@ func init() {
 }
 
 func main() {
-	//var vultrApiKey string = os.Getenv("VULTR_API_KEY")
 
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -70,6 +75,7 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.DurationVar(&reconcileTimeout, "reconcile-timeout", reconciler.DefaultLoopTimeout, "The maximum duration a reconcile loop can run (e.g. 90m)")
 
 	opts := zap.Options{
 		Development: true,
@@ -111,15 +117,18 @@ func main() {
 
 	if err = (&vcontroller.VultrClusterReconciler{
 		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		//Scheme:           mgr.GetScheme(),
+		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
+		ReconcileTimeout: reconcileTimeout,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}
 	if err = (&vcontroller.VultrMachineReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("vultrmachine-controller"),
+		Client: mgr.GetClient(),
+		//Scheme:           mgr.GetScheme(),
+		ReconcileTimeout: reconcileTimeout,
+		Recorder:         mgr.GetEventRecorderFor("vultrmachine-controller"),
 	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrMachine")
 		os.Exit(1)

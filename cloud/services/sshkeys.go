@@ -9,7 +9,7 @@ import (
 // GetSSHKey returns the SSH key from Vultr
 func (s *Service) GetSSHKey(sshkey string) (*govultr.SSHKey, error) {
 	if sshkey == "" {
-		return nil, errors.New("Missing SSH KEY")
+		return nil, errors.New("missing ssh key")
 	}
 	key, _, err := s.scope.SSHKEYS.Get(s.ctx, sshkey)
 	if err != nil {
