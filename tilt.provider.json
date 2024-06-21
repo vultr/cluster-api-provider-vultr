@@ -1,0 +1,16 @@
+{
+    "name": "vultr",
+    "config": {
+      "image": "sjc.vultrcr.com/dragoncity/capvultr-controller-image:v0.0.1",
+      "live_reload_deps": [
+        "main.go",
+        "go.mod",
+        "go.sum",
+        "api",
+        "cloud",
+        "controllers"
+      ],
+      "label": "CAPVULTR",
+      "manager_name": "capvultr-controller-manager"
+    }
+  }
