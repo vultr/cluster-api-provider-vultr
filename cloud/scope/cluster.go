@@ -3,7 +3,6 @@ package scope
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"

@@ -17,25 +17,27 @@ limitations under the License.
 package main
 
 import (
-	"crypto/tls"
 	"flag"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	capi "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	infrastructurev1beta1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
-	"github.com/vultr/cluster-api-provider-vultr/internal/controller"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
+	vcontroller "github.com/vultr/cluster-api-provider-vultr/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -44,21 +46,28 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+var (
+	reconcileTimeout time.Duration
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(infrastructurev1beta1.AddToScheme(scheme))
+	utilruntime.Must(capi.AddToScheme(scheme))
+	utilruntime.Must(infrav1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
 func main() {
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":9440", "The address the probe endpoint binds to.")
+
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -66,6 +75,8 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.DurationVar(&reconcileTimeout, "reconcile-timeout", reconciler.DefaultLoopTimeout, "The maximum duration a reconcile loop can run (e.g. 90m)")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -74,37 +85,19 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancelation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	disableHTTP2 := func(c *tls.Config) {
-		setupLog.Info("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
-	}
-
-	tlsOpts := []func(*tls.Config){}
-	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
-
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: tlsOpts,
-	})
+	ctx := ctrl.SetupSignalHandler()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsAddr,
 			SecureServing: secureMetrics,
-			TLSOpts:       tlsOpts,
+			//TLSOpts:       tlsOpts,
 		},
-		WebhookServer:          webhookServer,
+		//WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "22f02227.cluster.x-k8s.io",
+		LeaderElectionID:       "836d4a75.cluster.x-k8s.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -122,17 +115,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.VultrClusterReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+	if err = (&vcontroller.VultrClusterReconciler{
+		Client:           mgr.GetClient(),
+		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
+		ReconcileTimeout: reconcileTimeout,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}
-	if err = (&controller.VultrMachineReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
+	if err = (&vcontroller.VultrMachineReconciler{
+		Client:           mgr.GetClient(),
+		ReconcileTimeout: reconcileTimeout,
+		Recorder:         mgr.GetEventRecorderFor("vultrmachine-controller"),
+	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrMachine")
 		os.Exit(1)
 	}
@@ -148,7 +143,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
