@@ -1,8 +1,7 @@
-# cluster-api-provider-vultr
-// TODO(user): Add simple overview of use/purpose
+## What is the Cluster API Provider Vultr (CAPVULTR)
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+The [Cluster API](https://github.com/kubernetes-sigs/cluster-api) brings declarative Kubernetes-style APIs to cluster creation, configuration and management.
+
 
 ## Getting Started
 
@@ -43,15 +42,6 @@ You can apply the samples (examples) from the config/sample:
 
 ```sh
 kubectl apply -k config/samples/
-```
-
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
 ```
 
 **Delete the APIs(CRDs) from the cluster:**
