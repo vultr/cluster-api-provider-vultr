@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
@@ -35,6 +36,7 @@ const (
 type VultrMachineSpec struct {
 	// Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
 	// ProviderID is the unique identifer as specified by the cloud provider.
+	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
 	//The ID of the operating system to be installed
@@ -48,27 +50,30 @@ type VultrMachineSpec struct {
 	Region string `json:"region"`
 
 	// sshKey is the name of the ssh key to attach to the instance.
+	// +optional
 	SSHKey string `json:"sshKey,omitempty"`
 }
 
 // VultrMachineStatus defines the observed state of VultrMachine
 type VultrMachineStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
 	// Ready represents the infrastructure is ready to be used or not.
+	// +optional
 	Ready bool `json:"ready"`
 
 	// Addresses contains the Vultr instance associated addresses.
-	Addresses []clusterv1.MachineAddress `json:"addresses,omitempty"`
+	Addresses []corev1.NodeAddress `json:"addresses,omitempty"`
 
 	// ServerStatus represents the status of subscription.
+	// +optional
 	SubscriptionStatus *SubscriptionStatus `json:"subscriptionStatus,omitempty"`
 
 	// PowerStatus represents that the VPS is powerd on or not
+	// +optional
 	PowerStatus *PowerStatus `json:"powerStatus,omitempty"`
 
 	// ServerState represents a detail of server state.
+	// +optional
 	ServerState *ServerState `json:"serverState,omitempty"`
 
 	// FailureReason will be set in the event that there is a terminal problem
