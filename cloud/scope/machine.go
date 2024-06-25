@@ -83,12 +83,14 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 	}
 
 	return &MachineScope{
+		client:       params.Client,
 		Logger:       params.Logger,
 		Cluster:      params.Cluster,
 		Machine:      params.Machine,
 		VultrCluster: params.VultrCluster,
 		VultrMachine: params.VultrMachine,
 		patchHelper:  helper,
+		
 	}, nil
 }
 
