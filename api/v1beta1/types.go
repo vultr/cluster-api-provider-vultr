@@ -74,6 +74,16 @@ type NetworkSpec struct {
 	// Configures an API Server loadbalancers
 	// +optional
 	APIServerLoadbalancers VultrLoadBalancer `json:"apiServerLoadbalancers,omitempty"`
+	// VPC defines the VPC configuration.
+	// +optional
+	VPC VultrVPC `json:"vpc,omitempty"`
+}
+
+type VultrVPC struct {
+	// VPCUUID defines the VPC UUID to use. An empty value implies using the
+	// default VPC.
+	// +optional
+	VPC2ID string `json:"vpc2_id,omitempty"`
 }
 
 // VultrLoadBalancer represents the structure of a Vultr load balancer

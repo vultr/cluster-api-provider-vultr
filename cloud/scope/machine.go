@@ -90,7 +90,6 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 		VultrCluster: params.VultrCluster,
 		VultrMachine: params.VultrMachine,
 		patchHelper:  helper,
-		
 	}, nil
 }
 

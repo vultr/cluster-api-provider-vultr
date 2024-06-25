@@ -17,6 +17,7 @@ limitations under the License.
 package services
 
 import (
+	"encoding/base64"
 	"net/http"
 
 	"github.com/labstack/gommon/log"
@@ -24,7 +25,6 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
-	"github.com/vultr/cluster-api-provider-vultr/util"
 	"github.com/vultr/govultr/v3"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -54,6 +54,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
+	encodedBootstrapData := base64.StdEncoding.EncodeToString([]byte(bootstrapData))
 	if err != nil {
 		log.Error(err, "Error getting bootstrap data for machine")
 		return nil, errors.Wrap(err, "failed to retrieve bootstrap data")
@@ -66,12 +67,11 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	// Prepare the request payload
 	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
-		Label:      instanceName,
-		Region:     s.scope.Region(),
-		Plan:       scope.VultrMachine.Spec.PlanID,
-		OsID:       scope.VultrMachine.Spec.OSID,
-		UserData:   bootstrapData,
-		EnableVPC2: util.Pointer(true),
+		Label:    instanceName,
+		Region:   s.scope.Region(),
+		Plan:     scope.VultrMachine.Spec.PlanID,
+		OsID:     scope.VultrMachine.Spec.OSID,
+		UserData: encodedBootstrapData,
 	}
 
 	s.scope.V(2).Info("Building instance tags")

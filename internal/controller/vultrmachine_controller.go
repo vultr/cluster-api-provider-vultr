@@ -184,7 +184,7 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		return reconcile.Result{}, err
 	}
 
-	if instance == nil || instance.ID == "" {
+	if instance == nil {
 		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreating", "Instance is nil attempting create %v", instance)
 		instance, err = instancesvc.CreateInstance(machineScope)
 		if err != nil {

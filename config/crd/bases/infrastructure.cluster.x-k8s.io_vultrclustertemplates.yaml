@@ -168,6 +168,15 @@ spec:
                               status:
                                 type: string
                             type: object
+                          vpc:
+                            description: VPC defines the VPC configuration.
+                            properties:
+                              vpc2_id:
+                                description: |-
+                                  VPCUUID defines the VPC UUID to use. An empty value implies using the
+                                  default VPC.
+                                type: string
+                            type: object
                         type: object
                       region:
                         description: The Vultr Region (DCID) the cluster lives on
