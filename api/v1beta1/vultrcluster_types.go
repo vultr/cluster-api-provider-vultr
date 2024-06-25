@@ -48,6 +48,7 @@ type VultrClusterSpec struct {
 // VultrClusterStatus defines the observed state of VultrCluster
 type VultrClusterStatus struct {
 	// Ready denotes that the cluster (infrastructure) is ready
+	// +optional
 	Ready bool `json:"ready"`
 	//Network Network `json:"network,omitempty"`
 
@@ -92,7 +93,8 @@ type VultrClusterStatus struct {
 	// Conditions defines current service state of the VultrCluster.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
+	// Network encapsulates all things related to the Vultr network.
+	// +optional
 	Network VultrNetworkResource `json:"network,omitempty"`
 }
 
