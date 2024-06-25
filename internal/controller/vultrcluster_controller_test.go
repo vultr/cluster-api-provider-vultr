@@ -70,7 +70,7 @@ var _ = Describe("VultrCluster Controller", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &VultrClusterReconciler{
 				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				//Scheme: k8sClient.Scheme(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

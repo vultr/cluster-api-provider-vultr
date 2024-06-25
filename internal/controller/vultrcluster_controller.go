@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +47,6 @@ import (
 // VultrClusterReconciler reconciles a VultrCluster object
 type VultrClusterReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
 	ReconcileTimeout time.Duration
 	Recorder         record.EventRecorder
 	WatchFilterValue string
