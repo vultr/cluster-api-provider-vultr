@@ -143,11 +143,6 @@ type VultrMachineTemplateResource struct {
 	Spec VultrMachineSpec `json:"spec"`
 }
 
-// VultrClusterTemplateResource describes the data needed to create a VultrCluster from a template.
-type VultrClusterTemplateResource struct {
-	Spec VultrClusterSpec `json:"spec"`
-}
-
 // ApplyDefaults sets default values for VultrLoadBalancer fields if they are not set.
 func (in *VultrLoadBalancer) ApplyDefaults() {
 	// Set default for HealthCheck if it is not initialized
