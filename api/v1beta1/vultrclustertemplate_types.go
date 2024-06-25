@@ -28,6 +28,11 @@ type VultrClusterTemplateSpec struct {
 	Template VultrClusterTemplateResource `json:"template"`
 }
 
+// VultrClusterTemplateResource contains spec for VultrClusterSpec.
+type VultrClusterTemplateResource struct {
+	Spec VultrClusterSpec `json:"spec"`
+}
+
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:path=vultrclustertemplates,scope=Namespaced,categories=cluster-api,shortName=vct
 //+kubebuilder:subresource:status
@@ -37,7 +42,7 @@ type VultrClusterTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec VultrClusterSpec `json:"spec,omitempty"`
+	Spec VultrClusterTemplateSpec `json:"spec,omitempty"`
 }
 
 //+kubebuilder:object:root=true
