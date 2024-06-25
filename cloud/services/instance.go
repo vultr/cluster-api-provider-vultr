@@ -26,6 +26,7 @@ import (
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
 	"github.com/vultr/cluster-api-provider-vultr/util"
 	"github.com/vultr/govultr/v3"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // GetInstance retrieves an instance by its ID.
@@ -51,16 +52,19 @@ func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, error) {
 	s.scope.V(2).Info("Creating an instance for a machine")
 
+	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
 	if err != nil {
 		log.Error(err, "Error getting bootstrap data for machine")
 		return nil, errors.Wrap(err, "failed to retrieve bootstrap data")
 	}
+	s.scope.V(2).Info("Successfully retrieved bootstrap data")
 
 	clusterName := s.scope.Name()
 	instanceName := scope.Name()
 
 	// Prepare the request payload
+	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
 		Label:      instanceName,
 		Region:     s.scope.Region(),
@@ -70,20 +74,24 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 		EnableVPC2: util.Pointer(true),
 	}
 
+	s.scope.V(2).Info("Building instance tags")
 	instanceReq.Tags = infrav1.BuildTags(infrav1.BuildTagParams{
 		ClusterName: clusterName,
 		ClusterUID:  s.scope.UID(),
 		Name:        instanceName,
 		Role:        scope.Role(),
 	})
+	s.scope.V(2).Info("Successfully built instance tags")
 
+	s.scope.V(2).Info("Creating instance with Vultr API")
 	instance, _, err := s.scope.Instances.Create(s.ctx, instanceReq)
 	if err != nil {
+		log.Error(err, "Failed to create new instance")
 		return nil, errors.Wrap(err, "Failed to create new instance")
 	}
+	s.scope.V(2).Info("Successfully created instance", "instance-id", instance.ID)
 
 	return instance, nil
-
 }
 
 func (s *Service) DeleteInstance(id string) error {
@@ -101,4 +109,35 @@ func (s *Service) DeleteInstance(id string) error {
 
 	s.scope.V(2).Info("Deleted instance", "instance-id", id)
 	return nil
+}
+
+// GetInstanceAddress converts Vultr instance IPs to corev1.NodeAddresses.
+func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeAddress, error) {
+	addresses := []corev1.NodeAddress{}
+
+	// Add private IPv4 address
+	if instance.InternalIP != "" {
+		addresses = append(addresses, corev1.NodeAddress{
+			Type:    corev1.NodeInternalIP,
+			Address: instance.InternalIP,
+		})
+	} else {
+		s.scope.Info("No internal IPv4 address found for the instance", "instance-id", instance.ID)
+	}
+
+	// Add public IPv4 address
+	if instance.MainIP != "" {
+		addresses = append(addresses, corev1.NodeAddress{
+			Type:    corev1.NodeExternalIP,
+			Address: instance.MainIP,
+		})
+	} else {
+		s.scope.Info("No external IPv4 address found for the instance", "instance-id", instance.ID)
+	}
+
+	if len(addresses) == 0 {
+		return addresses, errors.New("no IP addresses found for the instance")
+	}
+
+	return addresses, nil
 }
