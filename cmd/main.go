@@ -37,7 +37,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
-	vcontroller "github.com/vultr/cluster-api-provider-vultr/internal/controller"
+	controllers "github.com/vultr/cluster-api-provider-vultr/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -115,7 +115,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&vcontroller.VultrClusterReconciler{
+	if err = (&controllers.VultrClusterReconciler{
 		Client:           mgr.GetClient(),
 		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
 		ReconcileTimeout: reconcileTimeout,
@@ -123,7 +123,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}
-	if err = (&vcontroller.VultrMachineReconciler{
+	if err = (&controllers.VultrMachineReconciler{
 		Client:           mgr.GetClient(),
 		ReconcileTimeout: reconcileTimeout,
 		Recorder:         mgr.GetEventRecorderFor("vultrmachine-controller"),
