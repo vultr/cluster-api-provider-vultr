@@ -21,8 +21,6 @@ spec:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: VultrMachineTemplate is the Schema for the vultrmachinetemplates
-          API
         properties:
           apiVersion:
             description: |-
@@ -45,9 +43,8 @@ spec:
             description: VultrMachineTemplateSpec defines the desired state of VultrMachineTemplate
             properties:
               template:
-                description: |-
-                  INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
+                description: VultrMachineTemplateResource describes the data needed
+                  to create a VultrMachine from a template.
                 properties:
                   spec:
                     description: Spec is the specification of the desired behavior

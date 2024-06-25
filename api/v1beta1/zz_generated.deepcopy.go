@@ -21,6 +21,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	apiv1beta1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/errors"
@@ -499,7 +500,7 @@ func (in *VultrMachineStatus) DeepCopyInto(out *VultrMachineStatus) {
 	*out = *in
 	if in.Addresses != nil {
 		in, out := &in.Addresses, &out.Addresses
-		*out = make([]apiv1beta1.MachineAddress, len(*in))
+		*out = make([]v1.NodeAddress, len(*in))
 		copy(*out, *in)
 	}
 	if in.SubscriptionStatus != nil {

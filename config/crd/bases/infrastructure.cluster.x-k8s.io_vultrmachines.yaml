@@ -88,15 +88,14 @@ spec:
               addresses:
                 description: Addresses contains the Vultr instance associated addresses.
                 items:
-                  description: MachineAddress contains information for the node's
-                    address.
+                  description: NodeAddress contains information for the node's address.
                   properties:
                     address:
-                      description: The machine address.
+                      description: The node address.
                       type: string
                     type:
-                      description: Machine address type, one of Hostname, ExternalIP,
-                        InternalIP, ExternalDNS or InternalDNS.
+                      description: Node address type, one of Hostname, ExternalIP
+                        or InternalIP.
                       type: string
                   required:
                   - address
@@ -203,8 +202,6 @@ spec:
               subscriptionStatus:
                 description: ServerStatus represents the status of subscription.
                 type: string
-            required:
-            - ready
             type: object
         type: object
     served: true
