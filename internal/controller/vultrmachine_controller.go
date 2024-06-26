@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -201,6 +202,10 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "SetInstanceStatus", "Setting Instance Status %s", instance.Label)
 	machineScope.SetInstanceStatus(infrav1.SubscriptionStatus(instance.Status))
 
+	if strings.Contains(instance.Label, "control-plane") {
+		instancesvc.AddInstanceToVLB(clusterScope.APIServerLoadbalancersRef().ResourceID, instance.ID)
+	}
+
 	addrs, err := instancesvc.GetInstanceAddress(instance)
 	if err != nil {
 		machineScope.SetFailureMessage(errors.New("failed to getting Instance address"))
@@ -215,21 +220,7 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 	case infrav1.SubscriptionStatusActive:
 		machineScope.Info("Machine instance is active", "instance-id", machineScope.GetInstanceID())
-		// Check the PowerStatus if the subscription is active.
-		switch infrav1.PowerStatus(instance.PowerStatus) {
-		case infrav1.PowerStatusRunning:
-			machineScope.Info("Machine instance is running", "instance-id", machineScope.GetInstanceID())
-			machineScope.SetReady()
-			r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "VultrMachineReady", "VultrMachine %s - has ready status", instance.Label)
-			return reconcile.Result{}, nil
-		default:
-			machineScope.SetFailureReason(capierrors.UpdateMachineError)
-			machineScope.SetFailureMessage(errors.Errorf("Power status %q is unexpected", instance.PowerStatus))
-			return reconcile.Result{}, nil
-		}
-	case infrav1.SubscriptionStatusSuspended, infrav1.SubscriptionStatusClosed:
-		machineScope.SetFailureReason(capierrors.UpdateMachineError)
-		machineScope.SetFailureMessage(errors.Errorf("Subscription status %q indicates machine is not active", instance.Status))
+		machineScope.SetReady()
 		return reconcile.Result{}, nil
 	default:
 		machineScope.SetFailureReason(capierrors.UpdateMachineError)
