@@ -17,6 +17,7 @@ limitations under the License.
 package services
 
 import (
+	"context"
 	"encoding/base64"
 	"net/http"
 
@@ -67,11 +68,12 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	// Prepare the request payload
 	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
-		Label:    instanceName,
-		Region:   s.scope.Region(),
-		Plan:     scope.VultrMachine.Spec.PlanID,
-		OsID:     scope.VultrMachine.Spec.OSID,
-		UserData: encodedBootstrapData,
+		Label:     instanceName,
+		Region:    s.scope.Region(),
+		Plan:      scope.VultrMachine.Spec.PlanID,
+		OsID:      scope.VultrMachine.Spec.OSID,
+		UserData:  encodedBootstrapData,
+		AttachVPC: []string{s.scope.VPC().VPCID},
 	}
 
 	s.scope.V(2).Info("Building instance tags")
@@ -140,4 +142,16 @@ func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeA
 	}
 
 	return addresses, nil
+}
+
+func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
+	currentVlb, _, err := s.scope.LoadBalancers.Get(context.TODO(), vlbID)
+	if err != nil {
+		return err
+	}
+
+	updateReq := govultr.LoadBalancerReq{Instances: currentVlb.Instances}
+	err = s.scope.LoadBalancers.Update(context.TODO(), vlbID, &updateReq)
+
+	return err
 }
