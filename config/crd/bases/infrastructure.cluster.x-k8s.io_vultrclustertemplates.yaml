@@ -171,10 +171,8 @@ spec:
                           vpc:
                             description: VPC defines the VPC configuration.
                             properties:
-                              vpc2_id:
-                                description: |-
-                                  VPCUUID defines the VPC UUID to use. An empty value implies using the
-                                  default VPC.
+                              vpc_id:
+                                description: default VPC.
                                 type: string
                             type: object
                         type: object
