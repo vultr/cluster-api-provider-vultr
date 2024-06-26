@@ -18,7 +18,7 @@ package scope
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -121,12 +121,15 @@ func (m *MachineScope) AddFinalizer(ctx context.Context) error {
 func (m *MachineScope) GetInstanceID() string {
 	id := m.GetProviderID()
 
-	// If the id is empty or does not match expected format, return empty string
-	if id == "" || !regexp.MustCompile(`^[a-f0-9\-]+$`).MatchString(id) {
+	split := strings.Split(id, "://")
+	if len(split) != 2 { //nolint
 		return ""
 	}
 
-	return id
+	if split[0] != "vultr" {
+		return ""
+	}
+	return split[1]
 }
 
 // GetProviderID returns the VultrMachine providerID from the spec.
