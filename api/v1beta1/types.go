@@ -80,10 +80,9 @@ type NetworkSpec struct {
 }
 
 type VultrVPC struct {
-	// VPCUUID defines the VPC UUID to use. An empty value implies using the
 	// default VPC.
 	// +optional
-	VPC2ID string `json:"vpc2_id,omitempty"`
+	VPCID string `json:"vpc_id,omitempty"`
 }
 
 // VultrLoadBalancer represents the structure of a Vultr load balancer
