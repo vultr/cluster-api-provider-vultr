@@ -79,6 +79,12 @@ spec:
               sshKey:
                 description: sshKey is the name of the ssh key to attach to the instance.
                 type: string
+              vpc_id:
+                description: VPCID is the id of the VPC to be attched .
+                type: string
+              vpc2_id:
+                description: VPC2ID is the id of the VPC2.0 to be attched .
+                type: string
             required:
             - region
             type: object

@@ -26,6 +26,7 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/util"
 	"github.com/vultr/govultr/v3"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -68,12 +69,18 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	// Prepare the request payload
 	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
-		Label:     instanceName,
-		Region:    s.scope.Region(),
-		Plan:      scope.VultrMachine.Spec.PlanID,
-		OsID:      scope.VultrMachine.Spec.OSID,
-		UserData:  encodedBootstrapData,
-		AttachVPC: []string{s.scope.VPC().VPCID},
+		Label:      instanceName,
+		Region:     s.scope.Region(),
+		Plan:       scope.VultrMachine.Spec.PlanID,
+		OsID:       scope.VultrMachine.Spec.OSID,
+		UserData:   encodedBootstrapData,
+		EnableIPv6: util.Pointer(true),
+	}
+
+	if scope.VultrMachine.Spec.VPCID != "" {
+		instanceReq.AttachVPC = append(instanceReq.AttachVPC, scope.VultrMachine.Spec.VPCID)
+	} else if scope.VultrMachine.Spec.VPC2ID != "" {
+		instanceReq.AttachVPC2 = append(instanceReq.AttachVPC2, scope.VultrMachine.Spec.VPCID)
 	}
 
 	s.scope.V(2).Info("Building instance tags")
@@ -94,6 +101,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	s.scope.V(2).Info("Successfully created instance", "instance-id", instance.ID)
 
 	return instance, nil
+
 }
 
 func (s *Service) DeleteInstance(id string) error {
@@ -117,16 +125,6 @@ func (s *Service) DeleteInstance(id string) error {
 func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeAddress, error) {
 	addresses := []corev1.NodeAddress{}
 
-	// Add private IPv4 address
-	if instance.InternalIP != "" {
-		addresses = append(addresses, corev1.NodeAddress{
-			Type:    corev1.NodeInternalIP,
-			Address: instance.InternalIP,
-		})
-	} else {
-		s.scope.Info("No internal IPv4 address found for the instance", "instance-id", instance.ID)
-	}
-
 	// Add public IPv4 address
 	if instance.MainIP != "" {
 		addresses = append(addresses, corev1.NodeAddress{
@@ -141,17 +139,35 @@ func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeA
 		return addresses, errors.New("no IP addresses found for the instance")
 	}
 
+	// Add private IPv4 address
+	if instance.InternalIP != "" {
+		addresses = append(addresses, corev1.NodeAddress{
+			Type:    corev1.NodeInternalIP,
+			Address: instance.InternalIP,
+		})
+	} else {
+		s.scope.Info("No internal IPv4 address found for the instance", "instance-id", instance.ID)
+	}
+
 	return addresses, nil
 }
 
 func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
+	s.scope.Info("Attempting to retrieve current VLB", "vlb-id", vlbID)
 	currentVlb, _, err := s.scope.LoadBalancers.Get(context.TODO(), vlbID)
 	if err != nil {
+		s.scope.Error(err, "Failed to retrieve current VLB", "vlb-id", vlbID)
 		return err
 	}
 
+	s.scope.Info("Successfully retrieved current VLB", "vlb-id", vlbID)
 	updateReq := govultr.LoadBalancerReq{Instances: currentVlb.Instances}
 	err = s.scope.LoadBalancers.Update(context.TODO(), vlbID, &updateReq)
+	if err != nil {
+		s.scope.Error(err, "Failed to update VLB", "vlb-id", vlbID, "instance-id", instanceID)
+		return err
+	}
 
-	return err
+	s.scope.Info("Successfully updated VLB", "vlb-id", vlbID, "instance-id", instanceID)
+	return nil
 }

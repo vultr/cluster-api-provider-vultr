@@ -23,7 +23,7 @@ import "github.com/vultr/govultr/v3"
 type VultrAPIClients struct {
 	Instances     govultr.InstanceService
 	LoadBalancers govultr.LoadBalancerService
-	VPC2          govultr.VPC2Service
-	VPC           govultr.VPCService
+	VPC2s         govultr.VPC2Service
+	VPCs          govultr.VPCService
 	SSHKEYS       govultr.SSHKeyService
 }

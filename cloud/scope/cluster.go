@@ -98,7 +98,7 @@ func (s *ClusterScope) APIServerLoadbalancers() *infrav1.VultrLoadBalancer {
 }
 
 // APIServerLoadbalancersRef get the VultrCluster status Network APIServerLoadbalancersRef.
-func (s *ClusterScope)   APIServerLoadbalancersRef() *infrav1.VultrResourceReference {
+func (s *ClusterScope) APIServerLoadbalancersRef() *infrav1.VultrResourceReference {
 	return &s.VultrCluster.Status.Network.APIServerLoadbalancersRef
 }
 
@@ -127,7 +127,7 @@ func (s *ClusterScope) SetControlPlaneEndpoint(apiEndpoint clusterv1.APIEndpoint
 	s.VultrCluster.Spec.ControlPlaneEndpoint = apiEndpoint
 }
 
-// VPC gets the VultrCluster Spec Network VPC.
-func (s *ClusterScope) VPC() *infrav1.VultrVPC {
-	return &s.VultrCluster.Spec.Network.VPC
-}
+// // VPC gets the VultrCluster Spec Network VPC.
+// func (s *ClusterScope) VPC() *infrav1.VultrVPC {
+// 	return &s.VultrCluster.Spec.Network.VPCID
+// }
