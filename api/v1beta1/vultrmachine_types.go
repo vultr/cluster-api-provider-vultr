@@ -39,8 +39,8 @@ type VultrMachineSpec struct {
 	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
-	//The ID of the operating system to be installed
-	OSID int `json:"osID,omitempty"`
+	//The Application image_id to use when deploying this instance.
+	Snapshot string `json:"snapshot_id,omitempty"`
 
 	// PlanID is the id of Vultr VPS plan (VPSPLANID).
 	PlanID string `json:"planID,omitempty"`

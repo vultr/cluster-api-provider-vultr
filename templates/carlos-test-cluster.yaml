@@ -7,9 +7,9 @@ spec:
   clusterNetwork:
     pods:
       cidrBlocks:
-        - 172.25.0.0/16 
-    services: 
-      cidrBlocks: 
+        - 172.25.0.0/16
+    services:
+      cidrBlocks:
         - 172.26.0.0/16
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -33,7 +33,7 @@ metadata:
   name: dragon-test-cluster-control-plane
 spec:
   replicas: 1
-  version: v1.30.0
+  version: "1.28.9"
   machineTemplate:
     infrastructureRef:
       kind: VultrMachineTemplate
@@ -47,7 +47,7 @@ spec:
           cgroup-driver: cgroupfs
           eviction-hard: 'nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%'
           cloud-provider: external
-          provider-id: 'vultr://''{{ ds.meta_data["instance_id"] }}'''
+          provider-id: vultr://'{{ ds.meta_data["instance_id"] }}'
         name: '{{ ds.meta_data["local_hostname"] }}'
     clusterConfiguration:
       controllerManager:
@@ -58,7 +58,7 @@ spec:
         criSocket: 'unix:///var/run/containerd/containerd.sock'
         kubeletExtraArgs:
           cloud-provider: external
-          cgroup-driver: cgroupfs
+          cgroup-driver: systenmd
           eviction-hard: 'nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%'
         name: '{{ ds.meta_data["local_hostname"] }}'
 ---
@@ -70,8 +70,10 @@ spec:
   template:
     spec:
       region: "ewr"
-      osID: 1743
       planID: "voc-c-2c-4gb-75s-amd"
+      vpc_id: "63692dfd-bea6-4e4e-8bb7-50de31887158"
+      snapshot_id: "beb9ffb1-33bf-42b3-aac0-83a37858e0a9"
+
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -79,13 +81,13 @@ metadata:
   name: "dragon-test-cluster-md-0"
 spec:
   clusterName: "dragon-test-cluster"
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
   template:
     spec:
       clusterName: "dragon-test-cluster"
-      version: "v1.30.0"
+      version: "1.28.9"
       bootstrap:
         configRef:
           name: "dragon-test-cluster-md-0"
@@ -104,8 +106,9 @@ spec:
   template:
     spec:
       region: "ewr"
-      osID: 1743
       planID: "voc-c-2c-4gb-75s-amd"
+      vpc_id: "63692dfd-bea6-4e4e-8bb7-50de31887158"
+      snapshot_id: "beb9ffb1-33bf-42b3-aac0-83a37858e0a9"
 
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
@@ -121,6 +124,6 @@ spec:
           criSocket: unix:///var/run/containerd/containerd.sock
           name: '{{ ds.meta_data.local_hostname }}'
           kubeletExtraArgs:
-            cloud-provider: external            
-            cgroup-driver: cgroupfs
+            cloud-provider: external
+            cgroup-driver: systemd
             eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%

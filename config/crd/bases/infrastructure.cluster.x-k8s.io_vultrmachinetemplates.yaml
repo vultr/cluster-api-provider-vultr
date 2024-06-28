@@ -50,9 +50,6 @@ spec:
                     description: Spec is the specification of the desired behavior
                       of the machine.
                     properties:
-                      osID:
-                        description: The ID of the operating system to be installed
-                        type: integer
                       planID:
                         description: PlanID is the id of Vultr VPS plan (VPSPLANID).
                         type: string
@@ -63,6 +60,10 @@ spec:
                         type: string
                       region:
                         description: The Vultr Region (DCID) the cluster lives on
+                        type: string
+                      snapshot_id:
+                        description: The Application image_id to use when deploying
+                          this instance.
                         type: string
                       sshKey:
                         description: sshKey is the name of the ssh key to attach to
