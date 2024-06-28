@@ -203,14 +203,23 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	machineScope.SetInstanceStatus(infrav1.SubscriptionStatus(instance.Status))
 
 	if strings.Contains(instance.Label, "control-plane") {
-		instancesvc.AddInstanceToVLB(clusterScope.APIServerLoadbalancersRef().ResourceID, instance.ID)
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "AddInstanceToVLB", "Instance %s is a control plane node, adding to VLB", instance.ID)
+		err := instancesvc.AddInstanceToVLB(clusterScope.APIServerLoadbalancersRef().ResourceID, instance.ID)
+		if err != nil {
+			r.Recorder.Eventf(vultrmachine, corev1.EventTypeWarning, "AddInstanceToVLBFailed", "Failed to add instance %s to VLB: %v", instance.ID, err)
+			return reconcile.Result{}, errors.Wrap(err, "failed to add instance to VLB")
+		}
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "AddInstanceToVLBSuccess", "Successfully added instance %s to VLB", instance.ID)
 	}
 
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "GetInstanceAddress", "Getting address for instance %s", instance.ID)
 	addrs, err := instancesvc.GetInstanceAddress(instance)
 	if err != nil {
-		machineScope.SetFailureMessage(errors.New("failed to getting Instance address"))
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeWarning, "GetInstanceAddressFailed", "Failed to get address for instance %s: %v", instance.ID, err)
+		machineScope.SetFailureMessage(errors.New("failed to get instance address"))
 		return reconcile.Result{}, err
 	}
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "GetInstanceAddressSuccess", "Successfully retrieved address for instance %s: %v", instance.ID, addrs)
 	machineScope.SetAddresses(addrs)
 
 	// Proceed to reconcile the VultrMachine state based on SubscriptionStatus.
