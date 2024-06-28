@@ -40,14 +40,17 @@ func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 
 	s.scope.Logger.V(2).Info("Looking for instance by ID", "instance-id", instanceID)
 
-	instance, resp, err := s.scope.Instances.Get(s.ctx, instanceID)
-	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			return nil, nil
-		}
-		return nil, errors.Wrapf(err, "failed to get instance with ID %q", instanceID)
-	}
-
+    instance, resp, err := s.scope.Instances.Get(s.ctx, instanceID)
+    if err != nil {
+        if resp != nil && resp.StatusCode == http.StatusNotFound {
+            return nil, nil
+        }
+        if resp != nil && resp.StatusCode == http.StatusBadRequest {
+            return nil, nil
+        }
+        return nil, errors.Wrapf(err, "failed to get instance with ID %q", instanceID)
+    }
+	
 	return instance, nil
 }
 
@@ -56,6 +59,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
+    bootstrapData = bootstrapData + "\r\n  - ufw disable"
 	encodedBootstrapData := base64.StdEncoding.EncodeToString([]byte(bootstrapData))
 	if err != nil {
 		log.Error(err, "Error getting bootstrap data for machine")
@@ -70,9 +74,10 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
 		Label:      instanceName,
+		Hostname:   instanceName,
 		Region:     s.scope.Region(),
 		Plan:       scope.VultrMachine.Spec.PlanID,
-		OsID:       scope.VultrMachine.Spec.OSID,
+		SnapshotID: scope.VultrMachine.Spec.Snapshot,
 		UserData:   encodedBootstrapData,
 		EnableIPv6: util.Pointer(true),
 	}
@@ -125,6 +130,16 @@ func (s *Service) DeleteInstance(id string) error {
 func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeAddress, error) {
 	addresses := []corev1.NodeAddress{}
 
+	// Add private IPv4 address
+	if instance.InternalIP != "" {
+		addresses = append(addresses, corev1.NodeAddress{
+			Type:    corev1.NodeInternalIP,
+			Address: instance.InternalIP,
+		})
+	} else {
+		s.scope.Info("No internal IPv4 address found for the instance", "instance-id", instance.ID)
+	}
+
 	// Add public IPv4 address
 	if instance.MainIP != "" {
 		addresses = append(addresses, corev1.NodeAddress{
@@ -139,16 +154,6 @@ func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeA
 		return addresses, errors.New("no IP addresses found for the instance")
 	}
 
-	// Add private IPv4 address
-	if instance.InternalIP != "" {
-		addresses = append(addresses, corev1.NodeAddress{
-			Type:    corev1.NodeInternalIP,
-			Address: instance.InternalIP,
-		})
-	} else {
-		s.scope.Info("No internal IPv4 address found for the instance", "instance-id", instance.ID)
-	}
-
 	return addresses, nil
 }
 
@@ -161,7 +166,7 @@ func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
 	}
 
 	s.scope.Info("Successfully retrieved current VLB", "vlb-id", vlbID)
-	updateReq := govultr.LoadBalancerReq{Instances: currentVlb.Instances}
+	updateReq := govultr.LoadBalancerReq{Instances: append(currentVlb.Instances, instanceID)}
 	err = s.scope.LoadBalancers.Update(context.TODO(), vlbID, &updateReq)
 	if err != nil {
 		s.scope.Error(err, "Failed to update VLB", "vlb-id", vlbID, "instance-id", instanceID)
