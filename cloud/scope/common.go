@@ -18,6 +18,7 @@ func CreateVultrClient() (*govultr.Client, error) {
 	ctx := context.Background()
 	tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
 	vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
+	vultrClient.SetUserAgent("vultr-cluster-api")
 
 	return vultrClient, nil
 }
