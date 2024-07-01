@@ -26,7 +26,6 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
-	"github.com/vultr/cluster-api-provider-vultr/util"
 	"github.com/vultr/govultr/v3"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -40,17 +39,17 @@ func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 
 	s.scope.Logger.V(2).Info("Looking for instance by ID", "instance-id", instanceID)
 
-    instance, resp, err := s.scope.Instances.Get(s.ctx, instanceID)
-    if err != nil {
-        if resp != nil && resp.StatusCode == http.StatusNotFound {
-            return nil, nil
-        }
-        if resp != nil && resp.StatusCode == http.StatusBadRequest {
-            return nil, nil
-        }
-        return nil, errors.Wrapf(err, "failed to get instance with ID %q", instanceID)
-    }
-	
+	instance, resp, err := s.scope.Instances.Get(s.ctx, instanceID)
+	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return nil, nil
+		}
+		if resp != nil && resp.StatusCode == http.StatusBadRequest {
+			return nil, nil
+		}
+		return nil, errors.Wrapf(err, "failed to get instance with ID %q", instanceID)
+	}
+
 	return instance, nil
 }
 
@@ -59,7 +58,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
-    bootstrapData = bootstrapData + "\r\n  - ufw disable"
+	bootstrapData = bootstrapData + "\r  - ufw disable"
 	encodedBootstrapData := base64.StdEncoding.EncodeToString([]byte(bootstrapData))
 	if err != nil {
 		log.Error(err, "Error getting bootstrap data for machine")
@@ -79,7 +78,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 		Plan:       scope.VultrMachine.Spec.PlanID,
 		SnapshotID: scope.VultrMachine.Spec.Snapshot,
 		UserData:   encodedBootstrapData,
-		EnableIPv6: util.Pointer(true),
+		//EnableIPv6: util.Pointer(true),
 	}
 
 	if scope.VultrMachine.Spec.VPCID != "" {
