@@ -74,16 +74,7 @@ type NetworkSpec struct {
 	// Configures an API Server loadbalancers
 	// +optional
 	APIServerLoadbalancers VultrLoadBalancer `json:"apiServerLoadbalancers,omitempty"`
-	// VPC defines the VPC configuration.
-	// +optional
-	//VPC VultrVPC `json:"vpc,omitempty"`
 }
-
-// type VultrVPC struct {
-// 	// default VPC.
-// 	// +optional
-// 	VPCID string `json:"vpc_id,omitempty"`
-// }
 
 // VultrLoadBalancer represents the structure of a Vultr load balancer
 type VultrLoadBalancer struct {
@@ -160,9 +151,6 @@ func (in *VultrLoadBalancer) ApplyDefaults() {
 	}
 
 	// Set default HealthCheck values if they are not set
-	if in.HealthCheck.Protocol == "" {
-		in.HealthCheck.Protocol = "tcp"
-	}
 	if in.HealthCheck.Port == 0 {
 		in.HealthCheck.Port = DefaultLBPort
 	}
