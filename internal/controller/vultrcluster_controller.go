@@ -33,9 +33,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	//"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	//"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
@@ -73,6 +77,28 @@ func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return nil
 }
 
+// // SetupWithManager sets up the controller with the Manager.
+// func (r *VultrClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
+// 	c, err := ctrl.NewControllerManagedBy(mgr).
+// 		For(&infrav1.VultrCluster{}).
+// 		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
+// 		Build(r)
+// 	if err != nil {
+// 		return errors.Wrapf(err, "error creating controller")
+// 	}
+
+// 	// Add a watch on clusterv1.Cluster object for unpause notifications.
+// 	if err = c.Watch(
+// 		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
+// 		handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1.GroupVersion.WithKind("VultrCluster"), mgr.GetClient(), &infrav1.VultrCluster{})),
+// 		predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)),
+// 	); err != nil {
+// 		return errors.Wrapf(err, "failed adding a watch for ready clusters")
+// 	}
+
+// 	return nil
+// }
+
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
@@ -88,6 +114,7 @@ func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
+
 func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
 	defer cancel()
@@ -142,8 +169,7 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Handle deleted clusters
 	if !vultrCluster.DeletionTimestamp.IsZero() {
-		_, err := r.reconcileDelete(ctx, clusterScope)
-		return ctrl.Result{}, err
+		return r.reconcileDelete(ctx, clusterScope)
 	}
 
 	// Handle non-deleted clusters
@@ -155,11 +181,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	clusterScope.Info("Reconciling VultrCluster")
 	vultrcluster := clusterScope.VultrCluster
 	// If the VultrCluster doesn't have finalizer, add it.
-	if !controllerutil.ContainsFinalizer(vultrcluster, infrav1.ClusterFinalizer) {
-		controllerutil.AddFinalizer(vultrcluster, infrav1.ClusterFinalizer)
-
-		return ctrl.Result{Requeue: true}, nil
-	}
+	controllerutil.AddFinalizer(vultrcluster, infrav1.ClusterFinalizer)
 
 	vlbservice := services.NewService(ctx, clusterScope)
 	apiServerLoadbalancer := clusterScope.APIServerLoadbalancers()
@@ -191,7 +213,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	apiServerLoadbalancerRef.ResourceSubscriptionStatus = infrav1.SubscriptionStatus(loadbalancer.Status)
 	apiServerLoadbalancer.ID = loadbalancer.ID
 
-	if apiServerLoadbalancerRef.ResourcePowerStatus != infrav1.PowerStatusRunning && loadbalancer.IPV4 == "" {
+	if apiServerLoadbalancerRef.ResourceSubscriptionStatus != infrav1.SubscriptionStatusActive && loadbalancer.IPV4 == "" {
 		clusterScope.Info("Waiting on API server Global IP Address")
 		return reconcile.Result{RequeueAfter: 15 * time.Second}, nil
 	}
