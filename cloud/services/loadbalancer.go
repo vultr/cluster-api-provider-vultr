@@ -17,7 +17,6 @@ limitations under the License.
 package services
 
 import (
-	"fmt"
 	"net/http"
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
@@ -43,12 +42,6 @@ func (s *Service) GetLoadBalancer(id string) (*govultr.LoadBalancer, error) {
 
 // CreateLoadBalancer creates a new load balancer.
 func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.LoadBalancer, error) {
-	if spec.HealthCheck == nil {
-		return nil, fmt.Errorf("health check configuration is missing")
-	}
-
-	port := spec.HealthCheck.Port
-
 	name := s.scope.Name() + "-" + s.scope.UID()
 	createReq := &govultr.LoadBalancerReq{
 		Label:  name,
@@ -56,14 +49,14 @@ func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.
 		ForwardingRules: []govultr.ForwardingRule{
 			{
 				FrontendProtocol: "tcp",
-				FrontendPort:     port,
+				FrontendPort:     spec.HealthCheck.Port,
 				BackendProtocol:  "tcp",
-				BackendPort:      port,
+				BackendPort:      spec.HealthCheck.Port,
 			},
 		},
 		HealthCheck: &govultr.HealthCheck{
 			Protocol:           "tcp",
-			Port:               port,
+			Port:               spec.HealthCheck.Port,
 			CheckInterval:      spec.HealthCheck.CheckInterval,
 			ResponseTimeout:    spec.HealthCheck.ResponseTimeout,
 			UnhealthyThreshold: spec.HealthCheck.UnhealthyThreshold,
@@ -82,10 +75,6 @@ func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.
 
 // DeleteLoadBalancer deletes a load balancer by its ID.
 func (s *Service) DeleteLoadBalancer(id string) error {
-	if id == "" {
-		return nil
-	}
-
 	if err := s.scope.LoadBalancers.Delete(s.ctx, id); err != nil {
 		return err
 	}

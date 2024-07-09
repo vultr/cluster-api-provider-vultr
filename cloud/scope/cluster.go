@@ -49,6 +49,10 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		params.VultrAPIClients.LoadBalancers = vultrClient.LoadBalancer
 	}
 
+	if params.VultrAPIClients.Snapshots == nil {
+		params.VultrAPIClients.Snapshots = vultrClient.Snapshot
+	}
+
 	helper, err := patch.NewHelper(params.VultrCluster, params.Client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init patch helper")

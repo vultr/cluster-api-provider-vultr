@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"net/http"
+	"time"
 
 	"github.com/labstack/gommon/log"
 	"github.com/pkg/errors"
@@ -157,21 +158,19 @@ func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeA
 }
 
 func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
-	s.scope.Info("Attempting to retrieve current VLB", "vlb-id", vlbID)
-	currentVlb, _, err := s.scope.LoadBalancers.Get(context.TODO(), vlbID)
-	if err != nil {
-		s.scope.Error(err, "Failed to retrieve current VLB", "vlb-id", vlbID)
-		return err
-	}
+	for {
+		currentVlb, _, err := s.scope.LoadBalancers.Get(context.TODO(), vlbID)
+		if err != nil {
+			return err
+		}
 
-	s.scope.Info("Successfully retrieved current VLB", "vlb-id", vlbID)
-	updateReq := govultr.LoadBalancerReq{Instances: append(currentVlb.Instances, instanceID)}
-	err = s.scope.LoadBalancers.Update(context.TODO(), vlbID, &updateReq)
-	if err != nil {
-		s.scope.Error(err, "Failed to update VLB", "vlb-id", vlbID, "instance-id", instanceID)
-		return err
+		if currentVlb.Status != "active" {
+			time.Sleep(10 * time.Second)
+		} else {
+			updateReq := govultr.LoadBalancerReq{}
+			updateReq.Instances = append(currentVlb.Instances, instanceID)
+			err := s.scope.LoadBalancers.Update(context.TODO(), vlbID, &updateReq)
+			return err
+		}
 	}
-
-	s.scope.Info("Successfully updated VLB", "vlb-id", vlbID, "instance-id", instanceID)
-	return nil
 }
