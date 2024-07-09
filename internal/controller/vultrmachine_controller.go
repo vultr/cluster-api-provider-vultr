@@ -26,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,16 +59,6 @@ type VultrMachineReconciler struct {
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;watch;list
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets;,verbs=get;list;watch
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the VultrMachine object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 
 func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
@@ -109,6 +100,12 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if err := r.Client.Get(ctx, vultrClusterName, vultrCluster); err != nil {
 		log.Info("VultrCluster is not available yet.")
+		return ctrl.Result{}, nil
+	}
+
+	// Return early if the object or Cluster is paused.
+	if annotations.IsPaused(cluster, vultrCluster) {
+		log.Info("VultrMachine or linked Cluster is marked as paused. Won't reconcile")
 		return ctrl.Result{}, nil
 	}
 
@@ -178,8 +175,8 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	instancesvc := services.NewService(ctx, clusterScope)
 	r.Recorder.Event(vultrmachine, corev1.EventTypeNormal, "InstanceServiceInitialized", "Instance service initialized")
 
-	//machineID := machineScope.GetInstanceID()
-	//r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceRetrieving", "Retrieving instance with ID %s", machineID)
+	machineID := machineScope.GetInstanceID()
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceRetrieving", "Retrieving instance with ID %s", machineID)
 	instance, err := instancesvc.GetInstance(machineScope.GetInstanceID())
 	if err != nil {
 		return reconcile.Result{}, err
