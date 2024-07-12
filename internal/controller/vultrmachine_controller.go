@@ -177,7 +177,7 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 
 	machineID := machineScope.GetInstanceID()
 	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceRetrieving", "Retrieving instance with ID %s", machineID)
-	instance, err := instancesvc.GetInstance(machineScope.GetInstanceID())
+	instance, err := instancesvc.GetInstance(machineID)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -190,6 +190,8 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 			r.Recorder.Event(vultrmachine, corev1.EventTypeWarning, "InstanceCreatingError", err.Error())
 			machineScope.SetInstanceServerState(infrav1.ServerStateError)
 			return reconcile.Result{}, err
+		}
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Label)
 	}
 
 	machineScope.SetProviderID(instance.ID)
@@ -216,7 +218,6 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "GetInstanceAddressSuccess", "Successfully retrieved address for instance %s: %v", instance.ID, addrs)
 	machineScope.SetAddresses(addrs)
 
-	// Proceed to reconcile the VultrMachine state based on SubscriptionStatus.
 	switch infrav1.SubscriptionStatus(instance.Status) {
 	case infrav1.SubscriptionStatusPending:
 		machineScope.Info("Machine instance is pending", "instance-id", machineScope.GetInstanceID())
