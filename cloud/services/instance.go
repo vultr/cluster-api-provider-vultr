@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/base64"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/gommon/log"
@@ -27,6 +28,7 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/util"
 	"github.com/vultr/govultr/v3"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -59,8 +61,13 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
-	bootstrapData = bootstrapData + "\r  - ufw disable"
-	encodedBootstrapData := base64.StdEncoding.EncodeToString([]byte(bootstrapData))
+	
+	commands := []string{
+		"ufw disable",
+	}
+	updatedBootstrapData := appendToUserDataCloudConfig(bootstrapData, commands)
+	encodedBootstrapData := base64.StdEncoding.EncodeToString([]byte(updatedBootstrapData))
+
 	if err != nil {
 		log.Error(err, "Error getting bootstrap data for machine")
 		return nil, errors.Wrap(err, "failed to retrieve bootstrap data")
@@ -79,7 +86,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 		Plan:       scope.VultrMachine.Spec.PlanID,
 		SnapshotID: scope.VultrMachine.Spec.Snapshot,
 		UserData:   encodedBootstrapData,
-		//EnableIPv6: util.Pointer(true),
+		EnableIPv6: util.Pointer(true),
 	}
 
 	if scope.VultrMachine.Spec.VPCID != "" {
@@ -150,10 +157,6 @@ func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeA
 		s.scope.Info("No external IPv4 address found for the instance", "instance-id", instance.ID)
 	}
 
-	if len(addresses) == 0 {
-		return addresses, errors.New("no IP addresses found for the instance")
-	}
-
 	return addresses, nil
 }
 
@@ -173,4 +176,18 @@ func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
 			return err
 		}
 	}
+}
+
+
+func appendToUserDataCloudConfig(userData string, commands []string) string {
+	runcmdIndex := strings.Index(userData, "runcmd:")
+	runcmdIndex += len("runcmd:")
+
+	// Append each command under runcmd: section
+	for _, cmd := range commands {
+		userData = userData[:runcmdIndex] + "\n  - " + cmd + userData[runcmdIndex:]
+		runcmdIndex += len("\n  - " + cmd)
+	}
+
+	return userData
 }
