@@ -17,15 +17,14 @@ limitations under the License.
 // Package scope implements scope types.
 package scope
 
-import (
-	"github.com/vultr/govultr/v3"
-)
+import "github.com/vultr/govultr/v3"
 
 // VultrClients hold all necessary clients to work with the Vultr API.
 type VultrAPIClients struct {
 	Instances     govultr.InstanceService
 	LoadBalancers govultr.LoadBalancerService
-	VPC           govultr.VPCService
+	VPC2s         govultr.VPC2Service
+	VPCs          govultr.VPCService
 	SSHKEYS       govultr.SSHKeyService
-	//K8sClient     client.Client
+	Snapshots     govultr.SnapshotService
 }

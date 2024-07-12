@@ -2,7 +2,7 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: "${CLUSTER_NAME}"
+  name: "dragon-test-cluster"
 spec:
   clusterNetwork:
     pods:
@@ -12,97 +12,109 @@ spec:
       cidrBlocks:
         - 172.26.0.0/16
   infrastructureRef:
-    apiVersion: infrastructure.cluster.x-k8s.io/v1
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: VultrCluster
-    name: "${CLUSTER_NAME}"
+    name: "dragon-test-cluster"
   controlPlaneRef:
     kind: KubeadmControlPlane
     apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-    name: "${CLUSTER_NAME}-control-plane"
+    name: "dragon-test-cluster-control-plane"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VultrCluster
 metadata:
-  name: "${CLUSTER_NAME}"
+  name: "dragon-test-cluster"
 spec:
-  region: "${REGION}"
+  region: "ewr"
 ---
 kind: KubeadmControlPlane
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 metadata:
-  name: "${CLUSTER_NAME}-control-plane"
+  name: dragon-test-cluster-control-plane
 spec:
   replicas: 1
-  version: "{KUBERNETES_VERSION}"
+  version: "1.28.9"
   machineTemplate:
     infrastructureRef:
       kind: VultrMachineTemplate
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      name: "${CLUSTER_NAME}-control-plane"
+      name: dragon-test-cluster-control-plane
   kubeadmConfigSpec:
     initConfiguration:
       nodeRegistration:
-        # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
-        criSocket: unix:///var/run/containerd/containerd.sock
+        criSocket: 'unix:///var/run/containerd/containerd.sock'
         kubeletExtraArgs:
           cgroup-driver: cgroupfs
-          eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+          eviction-hard: 'nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%'
+          cloud-provider: external
+          provider-id: vultr://'{{ ds.meta_data["instance_id"] }}'
+        name: '{{ ds.meta_data["local_hostname"] }}'
     clusterConfiguration:
       controllerManager:
-        extraArgs: { enable-hostpath-provisioner: 'true' }
+        extraArgs:
+          enable-hostpath-provisioner: 'true'
     joinConfiguration:
       nodeRegistration:
-        # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
-        criSocket: unix:///var/run/containerd/containerd.sock
+        criSocket: 'unix:///var/run/containerd/containerd.sock'
         kubeletExtraArgs:
-          cgroup-driver: cgroupfs
-          eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+          cloud-provider: external
+          cgroup-driver: systenmd
+          eviction-hard: 'nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%'
+        name: '{{ ds.meta_data["local_hostname"] }}'
 ---
 kind: VultrMachineTemplate
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 metadata:
-  name: "${CLUSTER_NAME}-control-plane"
+  name: "dragon-test-cluster-control-plane"
 spec:
   template:
     spec:
-      region: "${REGION}"
+      region: "ewr"
+      planID: "voc-c-2c-4gb-75s-amd"
+      vpc_id: "63692dfd-bea6-4e4e-8bb7-50de31887158"
+      snapshot_id: "beb9ffb1-33bf-42b3-aac0-83a37858e0a9"
+
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: "${CLUSTER_NAME}-md-0"
+  name: "dragon-test-cluster-md-0"
 spec:
-  clusterName: "${CLUSTER_NAME}"
-  replicas: 3
+  clusterName: "dragon-test-cluster"
+  replicas: 1
   selector:
     matchLabels:
   template:
     spec:
-      clusterName: "${CLUSTER_NAME}"
-      version: "{KUBERNETES_VERSION}"
+      clusterName: "dragon-test-cluster"
+      version: "1.28.9"
       bootstrap:
         configRef:
-          name: "${CLUSTER_NAME}-md-0"
+          name: "dragon-test-cluster-md-0"
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
       infrastructureRef:
-        name: "${CLUSTER_NAME}-md-0"
+        name: "dragon-test-cluster-md-0"
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: VultrMachineTemplate
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VultrMachineTemplate
 metadata:
-  name: "${CLUSTER_NAME}-md-0"
+  name: "dragon-test-cluster-md-0"
 spec:
   template:
     spec:
-      region: "${REGION}"
+      region: "ewr"
+      planID: "voc-c-2c-4gb-75s-amd"
+      vpc_id: "63692dfd-bea6-4e4e-8bb7-50de31887158"
+      snapshot_id: "beb9ffb1-33bf-42b3-aac0-83a37858e0a9"
+
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: "${CLUSTER_NAME}-md-0"
+  name: "dragon-test-cluster-md-0"
 spec:
   template:
     spec:
@@ -110,6 +122,8 @@ spec:
         nodeRegistration:
           # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
           criSocket: unix:///var/run/containerd/containerd.sock
+          name: '{{ ds.meta_data.local_hostname }}'
           kubeletExtraArgs:
-            cgroup-driver: cgroupfs
+            cloud-provider: external
+            cgroup-driver: systemd
             eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%

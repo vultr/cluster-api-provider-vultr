@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,10 +37,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/pkg/errors"
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
 	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
+	capierrors "sigs.k8s.io/cluster-api/errors"
 )
 
 // VultrMachineReconciler reconciles a VultrMachine object
@@ -56,16 +59,6 @@ type VultrMachineReconciler struct {
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;watch;list
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets;,verbs=get;list;watch
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the VultrMachine object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 
 func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
@@ -107,6 +100,12 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	if err := r.Client.Get(ctx, vultrClusterName, vultrCluster); err != nil {
 		log.Info("VultrCluster is not available yet.")
+		return ctrl.Result{}, nil
+	}
+
+	// Return early if the object or Cluster is paused.
+	if annotations.IsPaused(cluster, vultrCluster) {
+		log.Info("VultrMachine or linked Cluster is marked as paused. Won't reconcile")
 		return ctrl.Result{}, nil
 	}
 
@@ -172,13 +171,19 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		return reconcile.Result{}, nil
 	}
 
+	r.Recorder.Event(vultrmachine, corev1.EventTypeNormal, "InstanceServiceInitializing", "Initializing instance service")
 	instancesvc := services.NewService(ctx, clusterScope)
-	instance, err := instancesvc.GetInstance(machineScope.GetInstanceID())
+	r.Recorder.Event(vultrmachine, corev1.EventTypeNormal, "InstanceServiceInitialized", "Instance service initialized")
+
+	machineID := machineScope.GetInstanceID()
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceRetrieving", "Retrieving instance with ID %s", machineID)
+	instance, err := instancesvc.GetInstance(machineID)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	if instance == nil {
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreating", "Instance is nil attempting create %v", instance)
 		instance, err = instancesvc.CreateInstance(machineScope)
 		if err != nil {
 			err = errors.Errorf("Failed to create instance instance for VultrMachine %s/%s: %v", vultrmachine.Namespace, vultrmachine.Name, err)
@@ -190,14 +195,42 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	}
 
 	machineScope.SetProviderID(instance.ID)
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "SetInstanceStatus", "Setting Instance Status %s", instance.Label)
 	machineScope.SetInstanceStatus(infrav1.SubscriptionStatus(instance.Status))
 
-	// Register the finalizer immediately to avoid orphaning Vultr resources on delete.
-	if err := machineScope.PatchObject(ctx); err != nil {
-		return reconcile.Result{}, err
+	if strings.Contains(instance.Label, "control-plane") {
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "AddInstanceToVLB", "Instance %s is a control plane node, adding to VLB", instance.ID)
+		err := instancesvc.AddInstanceToVLB(clusterScope.APIServerLoadbalancersRef().ResourceID, instance.ID)
+		if err != nil {
+			r.Recorder.Eventf(vultrmachine, corev1.EventTypeWarning, "AddInstanceToVLBFailed", "Failed to add instance %s to VLB: %v", instance.ID, err)
+			return reconcile.Result{}, errors.Wrap(err, "failed to add instance to VLB")
+		}
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "AddInstanceToVLBSuccess", "Successfully added instance %s to VLB", instance.ID)
 	}
 
-	return reconcile.Result{}, nil
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "GetInstanceAddress", "Getting address for instance %s", instance.ID)
+	addrs, err := instancesvc.GetInstanceAddress(instance)
+	if err != nil {
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeWarning, "GetInstanceAddressFailed", "Failed to get address for instance %s: %v", instance.ID, err)
+		machineScope.SetFailureMessage(errors.New("failed to get instance address"))
+		return reconcile.Result{}, err
+	}
+	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "GetInstanceAddressSuccess", "Successfully retrieved address for instance %s: %v", instance.ID, addrs)
+	machineScope.SetAddresses(addrs)
+
+	switch infrav1.SubscriptionStatus(instance.Status) {
+	case infrav1.SubscriptionStatusPending:
+		machineScope.Info("Machine instance is pending", "instance-id", machineScope.GetInstanceID())
+		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
+	case infrav1.SubscriptionStatusActive:
+		machineScope.Info("Machine instance is active", "instance-id", machineScope.GetInstanceID())
+		machineScope.SetReady()
+		return reconcile.Result{}, nil
+	default:
+		machineScope.SetFailureReason(capierrors.UpdateMachineError)
+		machineScope.SetFailureMessage(errors.Errorf("Instance status %q is unexpected", instance.Status))
+		return reconcile.Result{}, nil
+	}
 }
 
 func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {

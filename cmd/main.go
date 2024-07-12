@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
-	vcontroller "github.com/vultr/cluster-api-provider-vultr/internal/controller"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
+	controllers "github.com/vultr/cluster-api-provider-vultr/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -115,18 +115,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&vcontroller.VultrClusterReconciler{
-		Client: mgr.GetClient(),
-		//Scheme:           mgr.GetScheme(),
-		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
+	if err = (&controllers.VultrClusterReconciler{
+		Client:           mgr.GetClient(),
 		ReconcileTimeout: reconcileTimeout,
-	}).SetupWithManager(mgr); err != nil {
+		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
+	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}
-	if err = (&vcontroller.VultrMachineReconciler{
-		Client: mgr.GetClient(),
-		//Scheme:           mgr.GetScheme(),
+	if err = (&controllers.VultrMachineReconciler{
+		Client:           mgr.GetClient(),
 		ReconcileTimeout: reconcileTimeout,
 		Recorder:         mgr.GetEventRecorderFor("vultrmachine-controller"),
 	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {

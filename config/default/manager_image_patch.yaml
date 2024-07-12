@@ -8,5 +8,5 @@ spec:
     spec:
       containers:
       # Change the value of image field below to your controller image URL
-      - image: sjc.vultrcr.com/dragoncity/capvultr-controller-image:v0.0.2
+      - image: sjc.vultrcr.com/dragoncity/capvultr-controller-image:v0.0.10
         name: manager

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,21 +43,12 @@ type VultrClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
-
-	// // CredentialsRef is a reference to a Secret that contains the credentials to use for provisioning this cluster. If not
-	// // supplied then the credentials of the controller will be used.
-	// // +optional
-	// CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
-
-	// // ControlPlaneLoadbalancer points to the load-balancer IP used for the ControlPlaneEndpoint.
-	// //+optional
-	// // ControlPlaneLoadBalancer *VultrLoadBalancer `json:"loadBalancer,omitempty"
-
 }
 
 // VultrClusterStatus defines the observed state of VultrCluster
 type VultrClusterStatus struct {
 	// Ready denotes that the cluster (infrastructure) is ready
+	// +optional
 	Ready bool `json:"ready"`
 	//Network Network `json:"network,omitempty"`
 
@@ -102,7 +93,8 @@ type VultrClusterStatus struct {
 	// Conditions defines current service state of the VultrCluster.
 	// +optional
 	Conditions clusterv1.Conditions `json:"conditions,omitempty"`
-
+	// Network encapsulates all things related to the Vultr network.
+	// +optional
 	Network VultrNetworkResource `json:"network,omitempty"`
 }
 

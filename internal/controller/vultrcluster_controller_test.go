@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
+	infrastructurev1beta1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 )
 
 var _ = Describe("VultrCluster Controller", func() {
@@ -40,13 +40,13 @@ var _ = Describe("VultrCluster Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		vultrcluster := &infrav1.VultrCluster{}
+		vultrcluster := &infrastructurev1beta1.VultrCluster{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind VultrCluster")
 			err := k8sClient.Get(ctx, typeNamespacedName, vultrcluster)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &infrav1.VultrCluster{
+				resource := &infrastructurev1beta1.VultrCluster{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("VultrCluster Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &infrav1.VultrCluster{}
+			resource := &infrastructurev1beta1.VultrCluster{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
@@ -70,7 +70,7 @@ var _ = Describe("VultrCluster Controller", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &VultrClusterReconciler{
 				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				//Scheme: k8sClient.Scheme(),
 			}
 
 			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{

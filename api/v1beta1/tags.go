@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ type Tags []string
 const (
 	// NameVultrProviderPrefix is the tag prefix for
 	// cluster-api-provider-Vultr owned components.
-	NameVultrProviderPrefix = "sigs-k8s-io:capv"
+	NameVultrProviderPrefix = "sigs-k8s-io:capvultr"
 	// APIServerRoleTagValue describes the value for the apiserver role.
 	APIServerRoleTagValue = "apiserver"
 	// NodeRoleTagValue describes the value for the node role.

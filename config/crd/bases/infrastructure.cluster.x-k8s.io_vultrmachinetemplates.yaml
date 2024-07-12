@@ -18,11 +18,9 @@ spec:
     singular: vultrmachinetemplate
   scope: Namespaced
   versions:
-  - name: v1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: VultrMachineTemplate is the Schema for the vultrmachinetemplates
-          API
         properties:
           apiVersion:
             description: |-
@@ -45,36 +43,13 @@ spec:
             description: VultrMachineTemplateSpec defines the desired state of VultrMachineTemplate
             properties:
               template:
-                description: |-
-                  INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
+                description: VultrMachineTemplateResource describes the data needed
+                  to create a VultrMachine from a template.
                 properties:
                   spec:
                     description: Spec is the specification of the desired behavior
                       of the machine.
                     properties:
-                      credentialsRef:
-                        description: |-
-                          CredentialsRef is a reference to a Secret that contains the credentials
-                          to use for provisioning this machine. If not supplied then these
-                          credentials will be used in-order:
-                            1. VultrMachine
-                            2. Owner VultrCluster
-                            3. Controller
-                        properties:
-                          name:
-                            description: name is unique within a namespace to reference
-                              a secret resource.
-                            type: string
-                          namespace:
-                            description: namespace defines the space within which
-                              the secret name must be unique.
-                            type: string
-                        type: object
-                        x-kubernetes-map-type: atomic
-                      osID:
-                        description: The ID of the operating system to be installed
-                        type: integer
                       planID:
                         description: PlanID is the id of Vultr VPS plan (VPSPLANID).
                         type: string
@@ -86,9 +61,20 @@ spec:
                       region:
                         description: The Vultr Region (DCID) the cluster lives on
                         type: string
+                      snapshot_id:
+                        description: The Application image_id to use when deploying
+                          this instance.
+                        type: string
                       sshKey:
                         description: sshKey is the name of the ssh key to attach to
                           the instance.
+                        type: string
+                      vpc_id:
+                        description: VPCID is the id of the VPC to be attched .
+                        type: string
+                      vpc2_id:
+                        description: VPC2ID is the id of the VPC2.0 to be attched
+                          .
                         type: string
                     required:
                     - region

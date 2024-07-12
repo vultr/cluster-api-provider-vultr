@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -36,10 +36,11 @@ const (
 type VultrMachineSpec struct {
 	// Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
 	// ProviderID is the unique identifer as specified by the cloud provider.
+	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
-	//The ID of the operating system to be installed
-	OSID int `json:"osID,omitempty"`
+	//The Application image_id to use when deploying this instance.
+	Snapshot string `json:"snapshot_id,omitempty"`
 
 	// PlanID is the id of Vultr VPS plan (VPSPLANID).
 	PlanID string `json:"planID,omitempty"`
@@ -49,36 +50,38 @@ type VultrMachineSpec struct {
 	Region string `json:"region"`
 
 	// sshKey is the name of the ssh key to attach to the instance.
+	// +optional
 	SSHKey string `json:"sshKey,omitempty"`
 
-	// CredentialsRef is a reference to a Secret that contains the credentials
-	// to use for provisioning this machine. If not supplied then these
-	// credentials will be used in-order:
-	//   1. VultrMachine
-	//   2. Owner VultrCluster
-	//   3. Controller
+	// VPCID is the id of the VPC to be attched .
 	// +optional
-	CredentialsRef *corev1.SecretReference `json:"credentialsRef,omitempty"`
+	VPCID string `json:"vpc_id,omitempty"`
+
+	// VPC2ID is the id of the VPC2.0 to be attched .
+	// +optional
+	VPC2ID string `json:"vpc2_id,omitempty"`
 }
 
 // VultrMachineStatus defines the observed state of VultrMachine
 type VultrMachineStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 
 	// Ready represents the infrastructure is ready to be used or not.
+	// +optional
 	Ready bool `json:"ready"`
 
 	// Addresses contains the Vultr instance associated addresses.
-	Addresses []clusterv1.MachineAddress `json:"addresses,omitempty"`
+	Addresses []corev1.NodeAddress `json:"addresses,omitempty"`
 
 	// ServerStatus represents the status of subscription.
+	// +optional
 	SubscriptionStatus *SubscriptionStatus `json:"subscriptionStatus,omitempty"`
 
 	// PowerStatus represents that the VPS is powerd on or not
+	// +optional
 	PowerStatus *PowerStatus `json:"powerStatus,omitempty"`
 
 	// ServerState represents a detail of server state.
+	// +optional
 	ServerState *ServerState `json:"serverState,omitempty"`
 
 	// FailureReason will be set in the event that there is a terminal problem

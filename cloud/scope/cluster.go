@@ -3,10 +3,9 @@ package scope
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/pkg/errors"
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 
 	"github.com/go-logr/logr"
@@ -36,12 +35,6 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		return nil, errors.New("VultrCluster is required when creating a ClusterScope")
 	}
 
-	// Retrieve the API key from the environment variable.
-	apiKey := os.Getenv("VULTR_API_KEY")
-	if apiKey == "" {
-		return nil, errors.New("VULTR_API_KEY environment variable is not set")
-	}
-
 	// Create the Vultr client.
 	vultrClient, err := CreateVultrClient()
 	if err != nil {
@@ -54,6 +47,10 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 
 	if params.VultrAPIClients.LoadBalancers == nil {
 		params.VultrAPIClients.LoadBalancers = vultrClient.LoadBalancer
+	}
+
+	if params.VultrAPIClients.Snapshots == nil {
+		params.VultrAPIClients.Snapshots = vultrClient.Snapshot
 	}
 
 	helper, err := patch.NewHelper(params.VultrCluster, params.Client)
@@ -104,14 +101,6 @@ func (s *ClusterScope) APIServerLoadbalancers() *infrav1.VultrLoadBalancer {
 	return &s.VultrCluster.Spec.Network.APIServerLoadbalancers
 }
 
-// func (s *ClusterScope) AddCredentialsRefFinalizer(ctx context.Context) error {
-// 	if s.VultrCluster.Spec.CredentialsRef == nil {
-// 		return nil
-// 	}
-
-// 	return addCredentialsFinalizer(ctx, s.VultrAPIClients, *s.VultrCluster.Spec.CredentialsRef, s.VultrCluster.GetNamespace(), toFinalizer(s.VultrCluster))
-// }
-
 // APIServerLoadbalancersRef get the VultrCluster status Network APIServerLoadbalancersRef.
 func (s *ClusterScope) APIServerLoadbalancersRef() *infrav1.VultrResourceReference {
 	return &s.VultrCluster.Status.Network.APIServerLoadbalancersRef
@@ -141,3 +130,8 @@ func (s *ClusterScope) SetReady() {
 func (s *ClusterScope) SetControlPlaneEndpoint(apiEndpoint clusterv1.APIEndpoint) {
 	s.VultrCluster.Spec.ControlPlaneEndpoint = apiEndpoint
 }
+
+// // VPC gets the VultrCluster Spec Network VPC.
+// func (s *ClusterScope) VPC() *infrav1.VultrVPC {
+// 	return &s.VultrCluster.Spec.Network.VPCID
+// }

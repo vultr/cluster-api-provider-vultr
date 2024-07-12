@@ -17,24 +17,17 @@ limitations under the License.
 package services
 
 import (
-	"fmt"
-	"net/http"
-
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/govultr/v3"
 )
 
-// GetLoadBalancer get a LB by LB ID.
 func (s *Service) GetLoadBalancer(id string) (*govultr.LoadBalancer, error) {
 	if id == "" {
 		return nil, nil
 	}
 
-	lb, res, err := s.scope.LoadBalancers.Get(s.ctx, id)
+	lb, _, err := s.scope.LoadBalancers.Get(s.ctx, id)
 	if err != nil {
-		if res != nil && res.StatusCode == http.StatusNotFound {
-			return nil, nil
-		}
 		return nil, err
 	}
 
@@ -43,12 +36,6 @@ func (s *Service) GetLoadBalancer(id string) (*govultr.LoadBalancer, error) {
 
 // CreateLoadBalancer creates a new load balancer.
 func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.LoadBalancer, error) {
-	if spec.HealthCheck == nil {
-		return nil, fmt.Errorf("health check configuration is missing")
-	}
-
-	port := spec.HealthCheck.Port
-
 	name := s.scope.Name() + "-" + s.scope.UID()
 	createReq := &govultr.LoadBalancerReq{
 		Label:  name,
@@ -56,14 +43,14 @@ func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.
 		ForwardingRules: []govultr.ForwardingRule{
 			{
 				FrontendProtocol: "tcp",
-				FrontendPort:     port,
+				FrontendPort:     spec.HealthCheck.Port,
 				BackendProtocol:  "tcp",
-				BackendPort:      port,
+				BackendPort:      spec.HealthCheck.Port,
 			},
 		},
 		HealthCheck: &govultr.HealthCheck{
 			Protocol:           "tcp",
-			Port:               port,
+			Port:               spec.HealthCheck.Port,
 			CheckInterval:      spec.HealthCheck.CheckInterval,
 			ResponseTimeout:    spec.HealthCheck.ResponseTimeout,
 			UnhealthyThreshold: spec.HealthCheck.UnhealthyThreshold,
@@ -82,10 +69,6 @@ func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.
 
 // DeleteLoadBalancer deletes a load balancer by its ID.
 func (s *Service) DeleteLoadBalancer(id string) error {
-	if id == "" {
-		return nil
-	}
-
 	if err := s.scope.LoadBalancers.Delete(s.ctx, id); err != nil {
 		return err
 	}

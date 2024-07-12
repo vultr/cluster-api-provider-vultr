@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 
 	corev1 "k8s.io/api/core/v1"
@@ -32,14 +31,19 @@ import (
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	//"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	//"sigs.k8s.io/controller-runtime/pkg/source"
+
 	"github.com/pkg/errors"
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
 	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
@@ -48,28 +52,28 @@ import (
 // VultrClusterReconciler reconciles a VultrCluster object
 type VultrClusterReconciler struct {
 	client.Client
-	Scheme           *runtime.Scheme
 	ReconcileTimeout time.Duration
 	Recorder         record.EventRecorder
 	WatchFilterValue string
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	gvk := infrav1.GroupVersion.WithKind("VultrCluster")
-
-	err := ctrl.NewControllerManagedBy(mgr).
+func (r *VultrClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
+	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.VultrCluster{}).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
-		Watches(
-			&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(
-				clusterutil.ClusterToInfrastructureMapFunc(context.TODO(), gvk, mgr.GetClient(), &infrav1.VultrCluster{}),
-			),
-			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
-		).Complete(r)
+		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
+		Build(r)
 	if err != nil {
-		return fmt.Errorf("failed to build controller: %w", err)
+		return errors.Wrapf(err, "error creating controller")
+	}
+
+	// Add a watch on clusterv1.Cluster object for unpause notifications.
+	if err = c.Watch(
+		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
+		handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1.GroupVersion.WithKind("VultrCluster"), mgr.GetClient(), &infrav1.VultrCluster{})),
+		predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)),
+	); err != nil {
+		return errors.Wrapf(err, "failed adding a watch for ready clusters")
 	}
 
 	return nil
@@ -77,19 +81,8 @@ func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the VultrCluster object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
 	defer cancel()
@@ -144,8 +137,7 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	// Handle deleted clusters
 	if !vultrCluster.DeletionTimestamp.IsZero() {
-		_, err := r.reconcileDelete(ctx, clusterScope)
-		return ctrl.Result{}, err
+		return r.reconcileDelete(ctx, clusterScope)
 	}
 
 	// Handle non-deleted clusters
@@ -157,11 +149,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	clusterScope.Info("Reconciling VultrCluster")
 	vultrcluster := clusterScope.VultrCluster
 	// If the VultrCluster doesn't have finalizer, add it.
-	if !controllerutil.ContainsFinalizer(vultrcluster, infrav1.ClusterFinalizer) {
-		controllerutil.AddFinalizer(vultrcluster, infrav1.ClusterFinalizer)
-
-		return ctrl.Result{Requeue: true}, nil
-	}
+	controllerutil.AddFinalizer(vultrcluster, infrav1.ClusterFinalizer)
 
 	vlbservice := services.NewService(ctx, clusterScope)
 	apiServerLoadbalancer := clusterScope.APIServerLoadbalancers()

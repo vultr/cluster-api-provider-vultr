@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,14 +25,13 @@ import (
 
 // VultrMachineTemplateSpec defines the desired state of VultrMachineTemplate
 type VultrMachineTemplateSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 	Template VultrMachineTemplateResource `json:"template"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=vultrmachinetemplates,scope=Namespaced,categories=cluster-api,shortName=vmt
 // VultrMachineTemplate is the Schema for the vultrmachinetemplates API
+
 type VultrMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

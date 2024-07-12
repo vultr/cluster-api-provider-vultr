@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 // ServerStatus represents the status of subscription.
 type SubscriptionStatus string
@@ -143,11 +143,6 @@ type VultrMachineTemplateResource struct {
 	Spec VultrMachineSpec `json:"spec"`
 }
 
-// VultrClusterTemplateResource describes the data needed to create a VultrCluster from a template.
-type VultrClusterTemplateResource struct {
-	Spec VultrClusterSpec `json:"spec"`
-}
-
 // ApplyDefaults sets default values for VultrLoadBalancer fields if they are not set.
 func (in *VultrLoadBalancer) ApplyDefaults() {
 	// Set default for HealthCheck if it is not initialized
@@ -156,9 +151,6 @@ func (in *VultrLoadBalancer) ApplyDefaults() {
 	}
 
 	// Set default HealthCheck values if they are not set
-	if in.HealthCheck.Protocol == "" {
-		in.HealthCheck.Protocol = "tcp"
-	}
 	if in.HealthCheck.Port == 0 {
 		in.HealthCheck.Port = DefaultLBPort
 	}

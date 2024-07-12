@@ -37,7 +37,7 @@ spec:
       jsonPath: .metadata.ownerReferences[?(@.kind=="Machine")].name
       name: Machine
       type: string
-    name: v1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: VultrMachine is the Schema for the vultrmachines API
@@ -62,28 +62,6 @@ spec:
           spec:
             description: VultrMachineSpec defines the desired state of VultrMachine
             properties:
-              credentialsRef:
-                description: |-
-                  CredentialsRef is a reference to a Secret that contains the credentials
-                  to use for provisioning this machine. If not supplied then these
-                  credentials will be used in-order:
-                    1. VultrMachine
-                    2. Owner VultrCluster
-                    3. Controller
-                properties:
-                  name:
-                    description: name is unique within a namespace to reference a
-                      secret resource.
-                    type: string
-                  namespace:
-                    description: namespace defines the space within which the secret
-                      name must be unique.
-                    type: string
-                type: object
-                x-kubernetes-map-type: atomic
-              osID:
-                description: The ID of the operating system to be installed
-                type: integer
               planID:
                 description: PlanID is the id of Vultr VPS plan (VPSPLANID).
                 type: string
@@ -95,8 +73,17 @@ spec:
               region:
                 description: The Vultr Region (DCID) the cluster lives on
                 type: string
+              snapshot_id:
+                description: The Application image_id to use when deploying this instance.
+                type: string
               sshKey:
                 description: sshKey is the name of the ssh key to attach to the instance.
+                type: string
+              vpc_id:
+                description: VPCID is the id of the VPC to be attched .
+                type: string
+              vpc2_id:
+                description: VPC2ID is the id of the VPC2.0 to be attched .
                 type: string
             required:
             - region
@@ -107,15 +94,14 @@ spec:
               addresses:
                 description: Addresses contains the Vultr instance associated addresses.
                 items:
-                  description: MachineAddress contains information for the node's
-                    address.
+                  description: NodeAddress contains information for the node's address.
                   properties:
                     address:
-                      description: The machine address.
+                      description: The node address.
                       type: string
                     type:
-                      description: Machine address type, one of Hostname, ExternalIP,
-                        InternalIP, ExternalDNS or InternalDNS.
+                      description: Node address type, one of Hostname, ExternalIP
+                        or InternalIP.
                       type: string
                   required:
                   - address
@@ -222,8 +208,6 @@ spec:
               subscriptionStatus:
                 description: ServerStatus represents the status of subscription.
                 type: string
-            required:
-            - ready
             type: object
         type: object
     served: true

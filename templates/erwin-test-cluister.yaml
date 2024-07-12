@@ -2,7 +2,7 @@
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
-  name: "${CLUSTER_NAME}"
+  name: "erwin-test-cluster"
 spec:
   clusterNetwork:
     pods:
@@ -14,31 +14,30 @@ spec:
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1
     kind: VultrCluster
-    name: "${CLUSTER_NAME}"
+    name: "erwin-test-cluster"
   controlPlaneRef:
     kind: KubeadmControlPlane
     apiVersion: controlplane.cluster.x-k8s.io/v1beta1
-    name: "${CLUSTER_NAME}-control-plane"
+    name: "erwin-test-cluster-control-plane"
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VultrCluster
 metadata:
-  name: "${CLUSTER_NAME}"
-spec:
-  region: "${REGION}"
+  name: "erwin-test-cluster"
+  region: ewr
 ---
 kind: KubeadmControlPlane
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 metadata:
-  name: "${CLUSTER_NAME}-control-plane"
+  name: "erwin-test-cluster-control-plane"
 spec:
   replicas: 1
-  version: "{KUBERNETES_VERSION}"
+  version: "v1.30.0"
   machineTemplate:
     infrastructureRef:
       kind: VultrMachineTemplate
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-      name: "${CLUSTER_NAME}-control-plane"
+      name: "erwin-test-cluster-control-plane"
   kubeadmConfigSpec:
     initConfiguration:
       nodeRegistration:
@@ -61,48 +60,48 @@ spec:
 kind: VultrMachineTemplate
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 metadata:
-  name: "${CLUSTER_NAME}-control-plane"
+  name: "erwin-test-cluster-control-plane"
 spec:
   template:
     spec:
-      region: "${REGION}"
+      region: ewr
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
-  name: "${CLUSTER_NAME}-md-0"
+  name: "erwin-test-cluster-md-0"
 spec:
-  clusterName: "${CLUSTER_NAME}"
+  clusterName: "erwin-test-cluster"
   replicas: 3
   selector:
     matchLabels:
   template:
     spec:
-      clusterName: "${CLUSTER_NAME}"
-      version: "{KUBERNETES_VERSION}"
+      clusterName: "erwin-test-cluster"
+      version: "v1.30.0"
       bootstrap:
         configRef:
-          name: "${CLUSTER_NAME}-md-0"
+          name: "erwin-test-cluster-md-0"
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: KubeadmConfigTemplate
       infrastructureRef:
-        name: "${CLUSTER_NAME}-md-0"
+        name: "erwin-test-cluster-md-0"
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: VultrMachineTemplate
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VultrMachineTemplate
 metadata:
-  name: "${CLUSTER_NAME}-md-0"
+  name: "erwin-test-cluster-md-0"
 spec:
   template:
     spec:
-      region: "${REGION}"
+      region: ewr
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
-  name: "${CLUSTER_NAME}-md-0"
+  name: "erwin-test-cluster-md-0"
 spec:
   template:
     spec:

@@ -18,7 +18,6 @@ package scope
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -27,13 +26,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	capierrors "sigs.k8s.io/cluster-api/errors"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1"
-	"github.com/vultr/govultr/v3"
+	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 )
 
 // MachineScopeParams defines the input parameters used to create a new MachineScope.
@@ -45,14 +44,12 @@ type MachineScopeParams struct {
 	Cluster      *clusterv1.Cluster
 	VultrMachine *infrav1.VultrMachine
 	VultrCluster *infrav1.VultrCluster
-	APIKey       string
 }
 
 // MachineScope defines a scope defined around a machine and its cluster.
 type MachineScope struct {
 	logr.Logger
 	client      client.Client
-	VultrClient *govultr.Client
 	patchHelper *patch.Helper
 
 	Machine      *clusterv1.Machine
@@ -80,23 +77,14 @@ func NewMachineScope(params MachineScopeParams) (*MachineScope, error) {
 		return nil, errors.New("VultrMachine is required when creating a MachineScope")
 	}
 
-	// config := &oauth2.Config{}
-	// tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
-	// vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
-
-	vultrClient, err := CreateVultrClient()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Vultr Client: %w", err)
-	}
-
 	helper, err := patch.NewHelper(params.VultrMachine, params.Client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init patch helper")
 	}
 
 	return &MachineScope{
+		client:       params.Client,
 		Logger:       params.Logger,
-		VultrClient:  vultrClient,
 		Cluster:      params.Cluster,
 		Machine:      params.Machine,
 		VultrCluster: params.VultrCluster,
@@ -119,16 +107,6 @@ func (m *MachineScope) SetReady() {
 	m.VultrMachine.Status.Ready = true
 }
 
-// // SetFailureReason sets the VultrMachine status error reason.
-// func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
-// 	m.VultrMachine.Status.FailureReason = &v
-// }
-
-// // SetFailureMessage sets the VultrMachine status error message.
-// func (m *MachineScope) SetFailureMessage(v error) {
-// 	m.VultrMachine.Status.FailureMessage = ptr.To[string](v.Error())
-// }
-
 // AddFinalizer adds a finalizer if not present and immediately patches the
 // object to avoid any race conditions.
 func (m *MachineScope) AddFinalizer(ctx context.Context) error {
@@ -143,22 +121,15 @@ func (m *MachineScope) AddFinalizer(ctx context.Context) error {
 func (m *MachineScope) GetInstanceID() string {
 	id := m.GetProviderID()
 
-	if id == "" ||
-		!regexp.MustCompile("^[^:]+://.*[^/]$").MatchString(id) {
+	split := strings.Split(id, "://")
+	if len(split) != 2 { //nolint
 		return ""
 	}
 
-	colonIndex := strings.Index(id, ":")
-	cloudProvider := id[0:colonIndex]
-
-	lastSlashIndex := strings.LastIndex(id, "/")
-	instance := id[lastSlashIndex+1:]
-
-	if cloudProvider == "" || instance == "" {
+	if split[0] != "vultr" {
 		return ""
 	}
-
-	return instance
+	return split[1]
 }
 
 // GetProviderID returns the VultrMachine providerID from the spec.
@@ -185,22 +156,30 @@ func (m *MachineScope) Namespace() string {
 	return m.VultrMachine.Namespace
 }
 
-// GetBootstrapData returns the bootstrap data from the secret in the Machine's bootstrap.dataSecretName.
 func (m *MachineScope) GetBootstrapData() (string, error) {
 	if m.Machine.Spec.Bootstrap.DataSecretName == nil {
+		m.Info("Bootstrap data secret reference is nil")
 		return "", errors.New("error retrieving bootstrap data: linked Machine's bootstrap.dataSecretName is nil")
 	}
 
+	secretName := *m.Machine.Spec.Bootstrap.DataSecretName
+	key := types.NamespacedName{Namespace: m.Namespace(), Name: secretName}
+	m.Info("Attempting to retrieve bootstrap data secret", "namespace", key.Namespace, "name", key.Name)
+
 	secret := &corev1.Secret{}
-	key := types.NamespacedName{Namespace: m.Namespace(), Name: *m.Machine.Spec.Bootstrap.DataSecretName}
 	if err := m.client.Get(context.TODO(), key, secret); err != nil {
+		m.Error(err, "Failed to retrieve bootstrap data secret", "namespace", key.Namespace, "name", key.Name)
 		return "", errors.Wrapf(err, "failed to retrieve bootstrap data secret for VultrMachine %s/%s", m.Namespace(), m.Name())
 	}
 
 	value, ok := secret.Data["value"]
 	if !ok {
+		m.Info("Bootstrap data secret missing 'value' key")
 		return "", errors.New("error retrieving bootstrap data: secret value key is missing")
 	}
+
+	// Log the retrieved bootstrap data (truncated to avoid logging sensitive information)
+	m.Info("Successfully retrieved bootstrap data", "value", string(value)[:min(50, len(value))])
 	return string(value), nil
 }
 
@@ -245,4 +224,19 @@ func (m *MachineScope) GetInstanceServerState() *infrav1.ServerState {
 // GetInstanceStatus returns the VultrMachine instance server state status .
 func (m *MachineScope) SetInstanceServerState(v infrav1.ServerState) {
 	m.VultrMachine.Status.ServerState = &v
+}
+
+// SetFailureMessage sets the VultrMachine status error message.
+func (m *MachineScope) SetFailureMessage(v error) {
+	m.VultrMachine.Status.FailureMessage = ptr.To[string](v.Error())
+}
+
+// SetAddresses sets the address status.
+func (m *MachineScope) SetAddresses(addrs []corev1.NodeAddress) {
+	m.VultrMachine.Status.Addresses = addrs
+}
+
+// SetFailureReason sets the DOMachine status error reason.
+func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
+	m.VultrMachine.Status.FailureReason = &v
 }

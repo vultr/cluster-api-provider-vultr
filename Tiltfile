@@ -6,8 +6,6 @@ tools_bin = "./hack/tools/bin"
 #Add tools to path
 os.putenv('PATH', os.getenv('PATH') + ':' + tools_bin)
 
-allow_k8s_contexts('vke-8ed4fdcd-b5b5-45d2-8d40-404b48bbab49')
-
 update_settings(k8s_upsert_timeout_secs=60)  # on first tilt up, often can take longer than 30 seconds
 
 # set defaults

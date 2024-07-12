@@ -30,7 +30,7 @@ spec:
       name: Endpoint
       priority: 1
       type: string
-    name: v1
+    name: v1beta1
     schema:
       openAPIV3Schema:
         description: VultrCluster is the Schema for the vultrclusters API
@@ -271,7 +271,8 @@ spec:
                   controller's output.
                 type: string
               network:
-                description: VultrNetworkResource encapsulates Vultr networking resources.
+                description: Network encapsulates all things related to the Vultr
+                  network.
                 properties:
                   apiServerLoadbalancersRef:
                     description: APIServerLoadbalancersRef is the id of apiserver
@@ -294,8 +295,6 @@ spec:
               ready:
                 description: Ready denotes that the cluster (infrastructure) is ready
                 type: boolean
-            required:
-            - ready
             type: object
         type: object
     served: true
