@@ -31,8 +31,9 @@ import (
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	//"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -57,63 +58,30 @@ type VultrClusterReconciler struct {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *VultrClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	gvk := infrav1.GroupVersion.WithKind("VultrCluster")
-
-	err := ctrl.NewControllerManagedBy(mgr).
+func (r *VultrClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
+	c, err := ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.VultrCluster{}).
-		WithEventFilter(predicates.ResourceNotPausedAndHasFilterLabel(mgr.GetLogger(), r.WatchFilterValue)).
-		Watches(
-			&clusterv1.Cluster{},
-			handler.EnqueueRequestsFromMapFunc(
-				clusterutil.ClusterToInfrastructureMapFunc(context.TODO(), gvk, mgr.GetClient(), &infrav1.VultrCluster{}),
-			),
-			builder.WithPredicates(predicates.ClusterUnpausedAndInfrastructureReady(mgr.GetLogger())),
-		).Complete(r)
+		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
+		Build(r)
 	if err != nil {
-		return fmt.Errorf("failed to build controller: %w", err)
+		return errors.Wrapf(err, "error creating controller")
+	}
+
+	// Add a watch on clusterv1.Cluster object for unpause notifications.
+	if err = c.Watch(
+		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
+		handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1.GroupVersion.WithKind("VultrCluster"), mgr.GetClient(), &infrav1.VultrCluster{})),
+		predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)),
+	); err != nil {
+		return errors.Wrapf(err, "failed adding a watch for ready clusters")
 	}
 
 	return nil
 }
 
-// // SetupWithManager sets up the controller with the Manager.
-// func (r *VultrClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
-// 	c, err := ctrl.NewControllerManagedBy(mgr).
-// 		For(&infrav1.VultrCluster{}).
-// 		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
-// 		Build(r)
-// 	if err != nil {
-// 		return errors.Wrapf(err, "error creating controller")
-// 	}
-
-// 	// Add a watch on clusterv1.Cluster object for unpause notifications.
-// 	if err = c.Watch(
-// 		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-// 		handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1.GroupVersion.WithKind("VultrCluster"), mgr.GetClient(), &infrav1.VultrCluster{})),
-// 		predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)),
-// 	); err != nil {
-// 		return errors.Wrapf(err, "failed adding a watch for ready clusters")
-// 	}
-
-// 	return nil
-// }
-
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=infrastructure.cluster.x-k8s.io,resources=vultrclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters;clusters/status,verbs=get;list;watch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the VultrCluster object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.0/pkg/reconcile
 
 func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	ctx, cancel := context.WithTimeout(ctx, reconciler.DefaultedLoopTimeout(r.ReconcileTimeout))
@@ -213,7 +181,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	apiServerLoadbalancerRef.ResourceSubscriptionStatus = infrav1.SubscriptionStatus(loadbalancer.Status)
 	apiServerLoadbalancer.ID = loadbalancer.ID
 
-	if apiServerLoadbalancerRef.ResourceSubscriptionStatus != infrav1.SubscriptionStatusActive && loadbalancer.IPV4 == "" {
+	if apiServerLoadbalancerRef.ResourcePowerStatus != infrav1.PowerStatusRunning && loadbalancer.IPV4 == "" {
 		clusterScope.Info("Waiting on API server Global IP Address")
 		return reconcile.Result{RequeueAfter: 15 * time.Second}, nil
 	}
