@@ -117,9 +117,9 @@ func main() {
 
 	if err = (&controllers.VultrClusterReconciler{
 		Client:           mgr.GetClient(),
-		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
 		ReconcileTimeout: reconcileTimeout,
-	}).SetupWithManager(mgr); err != nil {
+		Recorder:         mgr.GetEventRecorderFor("vultrcluster-controller"),
+	}).SetupWithManager(ctx, mgr, controller.Options{}); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VultrCluster")
 		os.Exit(1)
 	}

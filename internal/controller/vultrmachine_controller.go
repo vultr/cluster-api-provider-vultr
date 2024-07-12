@@ -190,11 +190,8 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 			r.Recorder.Event(vultrmachine, corev1.EventTypeWarning, "InstanceCreatingError", err.Error())
 			machineScope.SetInstanceServerState(infrav1.ServerStateError)
 			return reconcile.Result{}, err
-		}
-		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Label)
 	}
 
-	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "SetProviderID", "Setting Instance Provider ID %s", instance.Label)
 	machineScope.SetProviderID(instance.ID)
 	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "SetInstanceStatus", "Setting Instance Status %s", instance.Label)
 	machineScope.SetInstanceStatus(infrav1.SubscriptionStatus(instance.Status))
