@@ -27,7 +27,7 @@ const (
 	// DefaultMappingTimeout is the default timeout for a controller request mapping func.
 	DefaultMappingTimeout = 60 * time.Second
 	// DefaultRetryTime is the default time to retry when certain conditions are not met.
-	DefaultRetryTime = 1 * time.Minute
+	//DefaultRetryTime = 1 * time.Minute
 )
 
 // DefaultedLoopTimeout will default the timeout if it is zero valued.
