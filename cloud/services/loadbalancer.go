@@ -17,23 +17,17 @@ limitations under the License.
 package services
 
 import (
-	"net/http"
-
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
 	"github.com/vultr/govultr/v3"
 )
 
-// GetLoadBalancer get a LB by LB ID.
 func (s *Service) GetLoadBalancer(id string) (*govultr.LoadBalancer, error) {
 	if id == "" {
 		return nil, nil
 	}
 
-	lb, res, err := s.scope.LoadBalancers.Get(s.ctx, id)
+	lb, _, err := s.scope.LoadBalancers.Get(s.ctx, id)
 	if err != nil {
-		if res != nil && res.StatusCode == http.StatusNotFound {
-			return nil, nil
-		}
 		return nil, err
 	}
 
