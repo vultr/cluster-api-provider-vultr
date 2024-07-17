@@ -45,7 +45,7 @@ spec:
         # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
         criSocket: unix:///var/run/containerd/containerd.sock
         kubeletExtraArgs:
-          cgroup-driver: cgroupfs
+          cgroup-driver: systemd
           eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
     clusterConfiguration:
       controllerManager:
@@ -55,7 +55,7 @@ spec:
         # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
         criSocket: unix:///var/run/containerd/containerd.sock
         kubeletExtraArgs:
-          cgroup-driver: cgroupfs
+          cgroup-driver: systemd
           eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
 ---
 kind: VultrMachineTemplate
@@ -66,6 +66,12 @@ spec:
   template:
     spec:
       region: "${REGION}"
+      planID: "${PLANID}"
+      vpc_id: "${VPCID}"
+      snapshot_id: "${MACHINE_IMAGE}"
+      sshKey: 
+        - "${SSHKEY_ID}"
+
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
@@ -98,6 +104,11 @@ spec:
   template:
     spec:
       region: "${REGION}"
+      planID: "${PLANID}"
+      vpc_id: "${VPCID}"
+      snapshot_id: "${MACHINE_IMAGE}"
+      sshKey: 
+        - "${SSHKEY_ID}"
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
@@ -111,5 +122,5 @@ spec:
           # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
           criSocket: unix:///var/run/containerd/containerd.sock
           kubeletExtraArgs:
-            cgroup-driver: cgroupfs
+            cgroup-driver: systemd
             eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
