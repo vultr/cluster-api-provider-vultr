@@ -51,7 +51,7 @@ type VultrMachineSpec struct {
 
 	// sshKey is the name of the ssh key to attach to the instance.
 	// +optional
-	SSHKey string `json:"sshKey,omitempty"`
+	SSHKey []string `json:"sshKey,omitempty"`
 
 	// VPCID is the id of the VPC to be attched .
 	// +optional

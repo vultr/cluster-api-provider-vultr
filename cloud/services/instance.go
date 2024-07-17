@@ -61,7 +61,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
-	
+
 	commands := []string{
 		"ufw disable",
 	}
@@ -74,16 +74,24 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	}
 	s.scope.V(2).Info("Successfully retrieved bootstrap data")
 
+	var sshKeyIDs []string
+	for _, sshKeyID := range scope.VultrMachine.Spec.SSHKey {
+		keys, err := s.GetSSHKey(sshKeyID)
+		if err != nil {
+			return nil, err
+		}
+		sshKeyIDs = append(sshKeyIDs, keys.ID)
+	}
 	clusterName := s.scope.Name()
 	instanceName := scope.Name()
 
-	// Prepare the request payload
 	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
 		Label:      instanceName,
 		Hostname:   instanceName,
 		Region:     s.scope.Region(),
 		Plan:       scope.VultrMachine.Spec.PlanID,
+		SSHKeys:    sshKeyIDs,
 		SnapshotID: scope.VultrMachine.Spec.Snapshot,
 		UserData:   encodedBootstrapData,
 		EnableIPv6: util.Pointer(true),
@@ -177,7 +185,6 @@ func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
 		}
 	}
 }
-
 
 func appendToUserDataCloudConfig(userData string, commands []string) string {
 	runcmdIndex := strings.Index(userData, "runcmd:")

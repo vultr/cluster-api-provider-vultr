@@ -25,6 +25,6 @@ type VultrAPIClients struct {
 	LoadBalancers govultr.LoadBalancerService
 	VPC2s         govultr.VPC2Service
 	VPCs          govultr.VPCService
-	SSHKEYS       govultr.SSHKeyService
+	SSHKeys       govultr.SSHKeyService
 	Snapshots     govultr.SnapshotService
 }

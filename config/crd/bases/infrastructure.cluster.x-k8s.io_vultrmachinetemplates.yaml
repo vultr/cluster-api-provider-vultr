@@ -68,7 +68,9 @@ spec:
                       sshKey:
                         description: sshKey is the name of the ssh key to attach to
                           the instance.
-                        type: string
+                        items:
+                          type: string
+                        type: array
                       vpc_id:
                         description: VPCID is the id of the VPC to be attched .
                         type: string

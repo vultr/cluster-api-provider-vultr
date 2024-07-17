@@ -53,6 +53,10 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		params.VultrAPIClients.Snapshots = vultrClient.Snapshot
 	}
 
+	if params.VultrAPIClients.SSHKeys == nil {
+		params.VultrAPIClients.SSHKeys = vultrClient.SSHKey
+	}
+
 	helper, err := patch.NewHelper(params.VultrCluster, params.Client)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to init patch helper")
