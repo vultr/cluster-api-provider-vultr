@@ -236,7 +236,7 @@ func (m *MachineScope) SetAddresses(addrs []corev1.NodeAddress) {
 	m.VultrMachine.Status.Addresses = addrs
 }
 
-// SetFailureReason sets the DOMachine status error reason.
+// SetFailureReason sets the VultrMachine status error reason.
 func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
 	m.VultrMachine.Status.FailureReason = &v
 }
