@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -185,13 +186,15 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	if instance == nil {
 		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreating", "Instance is nil attempting create %v", instance)
 		instance, err = instancesvc.CreateInstance(machineScope)
+		instancePayload, _ := json.Marshal(vultrmachine)
+		machineScope.Info("Created new instance", "payload", string(instancePayload))
 		if err != nil {
 			err = errors.Errorf("Failed to create instance instance for VultrMachine %s/%s: %v", vultrmachine.Namespace, vultrmachine.Name, err)
 			r.Recorder.Event(vultrmachine, corev1.EventTypeWarning, "InstanceCreatingError", err.Error())
 			machineScope.SetInstanceServerState(infrav1.ServerStateError)
 			return reconcile.Result{}, err
 		}
-		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s", instance.Label)
+		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "InstanceCreated", "Created new instance instance - %s, payload: %s", instance.Label, string(instancePayload))
 	}
 
 	machineScope.SetProviderID(instance.ID)
