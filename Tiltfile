@@ -1,6 +1,6 @@
 # -*- mode: Python -*-
 
-envsubst_cmd = "./hack/tools/bin/envsubst"
+envsubst_cmd = "./hack/tools/bin"
 tools_bin = "./hack/tools/bin"
 
 #Add tools to path
@@ -16,9 +16,9 @@ settings = {
     "deploy_cert_manager": True,
     "preload_images_for_kind": True,
     "kind_cluster_name": "capvultr",
-    "capi_version": "v1.7.3",
-    "cert_manager_version": "v1.14.4",
-    "kubernetes_version": "v1.30.0",
+    "capi_version": "v1.7.4",
+    "cert_manager_version": "v1.5.3",
+    "kubernetes_version": "v1.28.9",
 }
 
 keys = ["VULTR_API_KEY"]
@@ -115,7 +115,7 @@ COPY --from=tilt-helper /restart.sh .
 COPY manager .
 """
 
-# Build CAPV and add feature gates
+# Build CAPVULTR and add feature gates
 def capvultr():
     # Apply the kustomized yaml for this provider
     substitutions = settings.get("kustomize_substitutions", {})
@@ -128,7 +128,7 @@ def capvultr():
         vultr_extra_args = settings.get("extra_args").get("vultr")
         if vultr_extra_args:
             yaml_dict = decode_yaml_stream(yaml)
-            append_arg_for_container_in_deployment(yaml_dict, "capv-controller-manager", "capv-system", "cluster-api-vultr-controller", vultr_extra_args)
+            append_arg_for_container_in_deployment(yaml_dict, "controller-manager", "cluster-api-provider-vultr-system", "capvultr-controller-image", vultr_extra_args)
             yaml = str(encode_yaml_stream(yaml_dict))
             yaml = fixup_yaml_empty_arrays(yaml)
 
@@ -136,7 +136,7 @@ def capvultr():
     local_resource(
         "manager",
         cmd = 'mkdir -p .tiltbuild;CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags \'-extldflags "-static"\' -o .tiltbuild/manager',
-        deps = ["api", "cloud", "config", "controllers", "go.mod", "go.sum", "main.go"]
+        deps = ["api", "cloud", "config", "internal","util", "go.mod", "go.sum", "main.go"]
     )
 
     dockerfile_contents = "\n".join([
@@ -152,7 +152,7 @@ def capvultr():
     # Set up an image build for the provider. The live update configuration syncs the output from the local_resource
     # build into the container.
     docker_build(
-        ref = "sjc.vultrcr.com/dragoncity/capv-imagetest",
+        ref = "gcr.io/k8s-staging-cluster-api-vultr/capvultr-controller-image",
         context = "./.tiltbuild/",
         dockerfile_contents = dockerfile_contents,
         target = "tilt",
