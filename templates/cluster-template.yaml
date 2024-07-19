@@ -32,8 +32,8 @@ apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 metadata:
   name: "${CLUSTER_NAME}-control-plane"
 spec:
-  replicas: 1
-  version: "{KUBERNETES_VERSION}"
+  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  version: "${KUBERNETES_VERSION}"
   machineTemplate:
     infrastructureRef:
       kind: VultrMachineTemplate
@@ -66,7 +66,7 @@ spec:
   template:
     spec:
       region: "${REGION}"
-      planID: "${PLANID}"
+      planID: "${CONTROL_PLANE_PLANID}"
       vpc_id: "${VPCID}"
       snapshot_id: "${MACHINE_IMAGE}"
       sshKey: 
@@ -79,13 +79,13 @@ metadata:
   name: "${CLUSTER_NAME}-md-0"
 spec:
   clusterName: "${CLUSTER_NAME}"
-  replicas: 3
+  replicas: ${WORKER_MACHINE_COUNT}
   selector:
     matchLabels:
   template:
     spec:
       clusterName: "${CLUSTER_NAME}"
-      version: "{KUBERNETES_VERSION}"
+      version: "${KUBERNETES_VERSION}"
       bootstrap:
         configRef:
           name: "${CLUSTER_NAME}-md-0"
@@ -96,7 +96,7 @@ spec:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: VultrMachineTemplate
 ---
-apiVersion: infrastructure.cluster.x-k8s.io/v1
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VultrMachineTemplate
 metadata:
   name: "${CLUSTER_NAME}-md-0"
@@ -104,7 +104,7 @@ spec:
   template:
     spec:
       region: "${REGION}"
-      planID: "${PLANID}"
+      planID: "${WORKER_PLANID}"
       vpc_id: "${VPCID}"
       snapshot_id: "${MACHINE_IMAGE}"
       sshKey: 
