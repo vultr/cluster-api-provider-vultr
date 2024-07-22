@@ -132,40 +132,6 @@ You can see the workload cluster resources by using:
 
 ```bash
 $ kubectl get cluster-api
-
-NAME                                                                             CLUSTER             AGE
-kubeadmconfig.bootstrap.cluster.x-k8s.io/capi-test-cluster-control-plane-lq9gg   capi-test-cluster   20m
-kubeadmconfig.bootstrap.cluster.x-k8s.io/capi-test-cluster-md-0-75lh2-mnqrp      capi-test-cluster   22m
-
-NAME                                                                      AGE
-kubeadmconfigtemplate.bootstrap.cluster.x-k8s.io/capi-test-cluster-md-0   22m
-
-NAME                                         CLUSTERCLASS   PHASE         AGE   VERSION
-cluster.cluster.x-k8s.io/capi-test-cluster                  Provisioned   22m   
-
-NAME                                                        CLUSTER             REPLICAS   READY   UPDATED   UNAVAILABLE   PHASE       AGE   VERSION
-machinedeployment.cluster.x-k8s.io/capi-test-cluster-md-0   capi-test-cluster   1                  1         1             ScalingUp   22m   v1.28.9
-
-NAME                                                             CLUSTER             NODENAME   PROVIDERID                                     PHASE         AGE   VERSION
-machine.cluster.x-k8s.io/capi-test-cluster-control-plane-lq9gg   capi-test-cluster              vultr://720af6bc-e6f4-40e4-8292-d59abc8fd591   Provisioned   20m   v1.28.9
-machine.cluster.x-k8s.io/capi-test-cluster-md-0-75lh2-mnqrp      capi-test-cluster              vultr://cf607d61-1331-4955-97f9-f362fed84ed9   Provisioned   22m   v1.28.9
-
-NAME                                                       CLUSTER             REPLICAS   READY   AVAILABLE   AGE   VERSION
-machineset.cluster.x-k8s.io/capi-test-cluster-md-0-75lh2   capi-test-cluster   1                              22m   v1.28.9
-
-NAME                                                                                CLUSTER             INITIALIZED   API SERVER AVAILABLE   REPLICAS   READY   UPDATED   UNAVAILABLE   AGE   VERSION
-kubeadmcontrolplane.controlplane.cluster.x-k8s.io/capi-test-cluster-control-plane   capi-test-cluster   true                                 1                  1         1             22m   v1.28.9
-
-NAME                                                             CLUSTER             READY
-vultrcluster.infrastructure.cluster.x-k8s.io/capi-test-cluster   capi-test-cluster   true
-
-NAME                                                                                 CLUSTER             STATE    READY   INSTANCEID                                     MACHINE
-vultrmachine.infrastructure.cluster.x-k8s.io/capi-test-cluster-control-plane-lq9gg   capi-test-cluster   active   true    vultr://720af6bc-e6f4-40e4-8292-d59abc8fd591   capi-test-cluster-control-plane-lq9gg
-vultrmachine.infrastructure.cluster.x-k8s.io/capi-test-cluster-md-0-75lh2-mnqrp      capi-test-cluster   active   true    vultr://cf607d61-1331-4955-97f9-f362fed84ed9   capi-test-cluster-md-0-75lh2-mnqrp
-
-NAME                                                                                   AGE
-vultrmachinetemplate.infrastructure.cluster.x-k8s.io/capi-test-cluster-control-plane   22m
-vultrmachinetemplate.infrastructure.cluster.x-k8s.io/capi-test-cluster-md-0            22m
 ```
 
 > Note: The control planes won’t be ready until you install the CNI and Vultr Cloud Controller Manager.
