@@ -124,5 +124,6 @@ spec:
           # We have to set the criSocket to containerd as kubeadm defaults to Vultr runtime if both containerd and Vultr sockets are found
           criSocket: unix:///var/run/containerd/containerd.sock
           kubeletExtraArgs:
+            cloud-provider: external
             cgroup-driver: systemd
             eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
