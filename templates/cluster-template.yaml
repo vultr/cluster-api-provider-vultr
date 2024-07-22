@@ -47,6 +47,8 @@ spec:
         kubeletExtraArgs:
           cgroup-driver: systemd
           eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+          cloud-provider: external
+          provider-id: vultr://'{{ ds.meta_data["instance_id"] }}'
     clusterConfiguration:
       controllerManager:
         extraArgs: { enable-hostpath-provisioner: 'true' }
