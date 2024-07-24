@@ -1,0 +1,12 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: VultrCluster
+metadata:
+  labels:
+    app.kubernetes.io/name: vultrcluster
+    app.kubernetes.io/instance: vultrcluster-sample
+    app.kubernetes.io/part-of: cluster-api-provider-vultr
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: cluster-api-provider-vultr
+  name: vultrcluster-sample
+spec:
+  # TODO(user): Add fields here
