@@ -189,7 +189,7 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		instancePayload, _ := json.Marshal(vultrmachine)
 		machineScope.Info("Created new instance", "payload", string(instancePayload))
 		if err != nil {
-			err = errors.Errorf("Failed to create instance instance for VultrMachine %s/%s: %v", vultrmachine.Namespace, vultrmachine.Name, err)
+			err = errors.Errorf("Failed to create instance for VultrMachine %s/%s: %v", vultrmachine.Namespace, vultrmachine.Name, err)
 			r.Recorder.Event(vultrmachine, corev1.EventTypeWarning, "InstanceCreatingError", err.Error())
 			machineScope.SetInstanceServerState(infrav1.ServerStateError)
 			return reconcile.Result{}, err
