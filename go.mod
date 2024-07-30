@@ -3,7 +3,7 @@ module github.com/vultr/cluster-api-provider-vultr
 go 1.21
 
 require (
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/labstack/gommon v0.4.2
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
