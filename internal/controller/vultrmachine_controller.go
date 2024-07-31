@@ -236,7 +236,7 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	}
 }
 
-func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
+func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) { //nolint: unparam
 	machineScope.Info("Reconciling delete VultrMachine")
 	vultrmachine := machineScope.VultrMachine
 

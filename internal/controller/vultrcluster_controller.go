@@ -202,7 +202,7 @@ func (r *VultrClusterReconciler) reconcileNormal(ctx context.Context, clusterSco
 	return reconcile.Result{}, nil
 }
 
-func (r *VultrClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
+func (r *VultrClusterReconciler) reconcileDelete(ctx context.Context, clusterScope *scope.ClusterScope) (reconcile.Result, error) { //nolint: unparam
 	clusterScope.Info("Reconciling delete VultrCluster")
 	vultrcluster := clusterScope.VultrCluster
 

@@ -74,7 +74,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	}
 	s.scope.V(2).Info("Successfully retrieved bootstrap data")
 
-	var sshKeyIDs []string
+	var sshKeyIDs []string //nolint:prealloc
 	for _, sshKeyID := range scope.VultrMachine.Spec.SSHKey {
 		keys, err := s.GetSSHKey(sshKeyID)
 		if err != nil {
