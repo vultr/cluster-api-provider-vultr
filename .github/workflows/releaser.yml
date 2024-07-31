@@ -3,7 +3,7 @@ name: "Automatic Releaser"
 on:
   push:
     branches:
-      - master
+      - main
 
 permissions:
   contents: write
@@ -28,23 +28,41 @@ jobs:
     outputs:
       new_tag: ${{ steps.tagger.outputs.new_tag }}
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: Bump version and push tag
-      id: tagger
-      uses: anothrNick/github-tag-action@1.36.0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        WITH_V: true
-        DEFAULT_BUMP: "none"
+      - name: Bump version and push tag
+        id: tagger
+        uses: anothrNick/github-tag-action@1.36.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: "none"
 
-  goreleaser:
+  build-manifests:
     runs-on: ubuntu-latest
     needs: create-tag
     steps:
-      -
+      - 
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - 
+        name: Install Make
+        run: sudo apt-get install -y make
+
+      - 
+        name: Build Manifests
+        run: make release-manifests
+        working-directory: ${{ github.workspace }}
+
+  goreleaser:
+    runs-on: ubuntu-latest
+    needs: [create-tag, build-manifests]
+    steps:
+      - 
         name: Checkout
         uses: actions/checkout@v2
         with:
