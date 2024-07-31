@@ -35,7 +35,7 @@ const (
 // VultrMachineSpec defines the desired state of VultrMachine
 type VultrMachineSpec struct {
 	// Foo is an example field of VultrMachine. Edit vultrmachine_types.go to remove/update
-	// ProviderID is the unique identifer as specified by the cloud provider.
+	// ProviderID is the unique identifier as specified by the cloud provider.
 	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
