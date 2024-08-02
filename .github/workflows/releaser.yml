@@ -40,65 +40,34 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: "none"
 
-  build-manifests:
+  create-release:
     runs-on: ubuntu-latest
-    needs: create-tag
+    needs: [create-tag]
     steps:
-      - 
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - 
-        name: Install Make
-        run: sudo apt-get install -y make
 
-      - 
-        name: Build Manifests
-        run: make release-manifests
-        working-directory: ${{ github.workspace }}
-
-  goreleaser:
-    runs-on: ubuntu-latest
-    needs: [create-tag, build-manifests]
-    steps:
-      - 
-        name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      -
-        name: Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-      -
-        name: Docker Login
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
-      -
-        name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.VULTRBOT_TOKEN }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      -
-        name: Clear
-        if: always()
-        run: |
-          rm -f ${HOME}/.docker/config.json
+          go-version: '1.21'
 
-  release:
+      - name: Create Release Artifacts
+        run: make release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+
+      - name: Upload Release Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./out/*
+
+  release-notification:
     runs-on: ubuntu-latest
-    needs: ["goreleaser", "create-tag"]
+    needs: ["create-release"]
     name: Release Notification
     steps:
       - uses: mattermost/action-mattermost-notify@2.0.0
@@ -106,4 +75,4 @@ jobs:
           MATTERMOST_WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
           MATTERMOST_USERNAME: ${{ secrets.MATTERMOST_USERNAME}}
           MATTERMOST_ICON_URL: ${{ secrets.MATTERMOST_ICON }}
-          TEXT: "${{ github.repository }} : Release https://github.com/${{ github.repository }}/releases/tag/${{ needs.create-tag.outputs.new_tag }}"
+          TEXT: "${{ github.repository }} : Release https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
