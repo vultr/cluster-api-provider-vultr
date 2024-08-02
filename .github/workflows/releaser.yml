@@ -64,6 +64,8 @@ jobs:
         with:
           files: |
             ./out/*
+          tag_name: ${{ needs.create-tag.outputs.new_tag }}
+
 
   release-notification:
     runs-on: ubuntu-latest
