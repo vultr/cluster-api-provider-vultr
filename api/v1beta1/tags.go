@@ -34,7 +34,7 @@ const (
 )
 
 // ClusterNameTag generates the tag with prefix `NameVultrProviderPrefix`
-// for resources associated with a cluster. It will generated tag like `sigs-k8s-io:capv:{clusterName}`.
+// for resources associated with a cluster. It will generated tag like `sigs-k8s-io:capvultr:{clusterName}`.
 func ClusterNameTag(clusterName string) string {
 	return fmt.Sprintf("%s:%s", NameVultrProviderPrefix, clusterName)
 }
@@ -46,7 +46,7 @@ func ClusterNameRoleTag(clusterName, role string) string {
 }
 
 // ClusterNameUIDRoleTag generates the tag with prefix `NameVultrProviderPrefix` and `RoleValue` as suffix
-// It will generated tag like `sigs-k8s-io:capv:{clusterName}:{UID}:{role}`.
+// It will generated tag like `sigs-k8s-io:capvultr:{clusterName}:{UID}:{role}`.
 func ClusterNameUIDRoleTag(clusterName, clusterUID, role string) string {
 	return fmt.Sprintf("%s:%s:%s:%s", NameVultrProviderPrefix, clusterName, clusterUID, role)
 }
