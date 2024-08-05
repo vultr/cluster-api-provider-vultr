@@ -12,10 +12,10 @@ The [Cluster API](https://github.com/kubernetes-sigs/cluster-api) brings declara
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+**Build and push your image to the location specified by `CONTROLLER_IMAGE`:**
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/cluster-api-provider-vultr:tag
+make docker-build docker-push CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified. 
@@ -28,10 +28,10 @@ Make sure you have the proper permission to the registry if the above commands d
 make install
 ```
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
+**Deploy the Manager to the cluster with the image specified by `CONTROLLER_IMAGE`:**
 
 ```sh
-make deploy IMG=<some-registry>/cluster-api-provider-vultr:tag
+make deploy CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin 
@@ -63,7 +63,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/cluster-api-provider-vultr:tag
+make build-installer CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -79,26 +79,5 @@ Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project
 kubectl apply -f https://raw.githubusercontent.com/<org>/cluster-api-provider-vultr/<tag or branch>/dist/install.yaml
 ```
 
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
-
-Copyright 2024.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
