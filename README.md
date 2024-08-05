@@ -1,83 +1,33 @@
+# Kubernetes Cluster API Provider Vultr
+
+<p align="center">
+<img src="https://raw.githubusercontent.com/kubernetes-sigs/cluster-api/main/docs/book/src/images/introduction.svg"  width="80" style="vertical-align: middle;">
+<img src="./docs/vultr.svg" width="100" style="vertical-align: middle;">
+</p>
+<p align="center">
+
 ## What is the Cluster API Provider Vultr (CAPVULTR)
 
 The [Cluster API](https://github.com/kubernetes-sigs/cluster-api) brings declarative Kubernetes-style APIs to cluster creation, configuration and management.
 
-
-## Getting Started
-
-### Prerequisites
-- go version v1.21.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
-
-### To Deploy on the cluster
-**Build and push your image to the location specified by `CONTROLLER_IMAGE`:**
-
-```sh
-make docker-build docker-push CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
-```
-
-**NOTE:** This image ought to be published in the personal registry you specified. 
-And it is required to have access to pull the image from the working environment. 
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
-
-```sh
-make install
-```
-
-**Deploy the Manager to the cluster with the image specified by `CONTROLLER_IMAGE`:**
-
-```sh
-make deploy CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin 
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
-
-## Project Distribution
-
-Following are the steps to build the installer and distribute this project to users.
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
-```
-
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/cluster-api-provider-vultr/<tag or branch>/dist/install.yaml
-```
+The API itself is shared across multiple cloud providers allowing for true Vultr hybrid deployments of Kubernetes.
 
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+## Quick Start
+
+Check out the [Cluster API Quick Start](docs/getting-started.md) to create your first Kubernetes cluster.
+
+## Compatibility
+
+### Cluster API Versions
+
+This provider's versions are compatible with the following versions of Cluster API:
+
+|                          | Cluster API v1beta1 (v1.7) |
+|--------------------------|:--------------------------:|
+| CAPVULTR v1beta1 (v0.0.1)  |             ✓              |
+
+
+## Kubernetes versions with published Images
+
+Pre-built images are pushed to the [Docker Hub](https://hub.docker.com/u/vultr/cluster-api-provider-vultr). 
