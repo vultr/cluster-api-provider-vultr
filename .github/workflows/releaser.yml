@@ -76,7 +76,11 @@ jobs:
           files: |
             ./out/*
           tag_name: ${{ needs.create-tag.outputs.new_tag }}
-
+          
+      - name: Clear
+        if: always()
+        run: |
+          rm -f ${HOME}/.docker/config.json
 
   release-notification:
     runs-on: ubuntu-latest
