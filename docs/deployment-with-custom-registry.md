@@ -2,7 +2,8 @@
 **Build and push your image to the location specified by `CONTROLLER_IMAGE`:**
 
 ```sh
-make docker-build docker-push CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
+
+make docker-build docker-push CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr TAG=v0.0.1
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified. 
@@ -18,7 +19,9 @@ make install
 **Deploy the Manager to the cluster with the image specified by `CONTROLLER_IMAGE`:**
 
 ```sh
-make deploy CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr:tag
+
+make deploy CONTROLLER_IMAGE=<some-registry>/cluster-api-provider-vultr TAG=v0.0.1
+
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin 

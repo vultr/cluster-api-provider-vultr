@@ -37,11 +37,21 @@ Clone the image builder repository if you haven't already:
 
 Change directory to images/capi within the image builder repository:
 
-    $ cd image-builder/images/capi/packer/vultr 
+    $ cd image-builder/images/capi
 
 Generate a Vultr image (choosing Ubuntu in the example below):
 
     $ make build-vultr-ubuntu-2204
+
+
+List of available make commands for Vultr
+```
+../capi$ make help | grep vultr
+
+  deps-vultr                           Installs/checks dependencies for Vultr builds
+  build-vultr-ubuntu-2204              Builds Ubuntu 22.04 Vultr Snapshot
+  validate-vultr-ubuntu-2204           Validates Ubuntu 22.04 Vultr Snapshot Packer config
+```
 
 Verify that the image is available in your account and remember the corresponding image ID:
 
@@ -76,7 +86,7 @@ You can now create your first workload cluster by running the following:
 ## Creating a workload cluster
 
 
-Update value of image field below to your controller image URL in
+Update value of image field below to your controller image URL in the Vultr provider.
 ```
 ../default/manager_image_patch.yaml
 ```
