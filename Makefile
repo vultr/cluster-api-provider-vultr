@@ -20,6 +20,9 @@ export GOPROXY
 # Active module mode, as we use go modules to manage dependencies
 export GO111MODULE=on
 
+# curl retries
+CURL_RETRIES=3
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
@@ -165,18 +168,19 @@ release-manifests: $(KUSTOMIZE) $(RELEASE_DIR) ## Builds the manifests to publis
 
 ##@ Cleanup:
 
-.PHONY: clean
-clean:
+.PHONY: clean 
+clean:  ## Remove generated /bin dependencies
 	rm -rf $(LOCALBIN)
 
 .PHONY: clean-release-git
-clean-release-git: ## Restores the git files usually modified during a release
+clean-release-git:  ## Restores the git files usually modified during a release
 	git restore config/default/*manager_image_patch.yaml
 
 .PHONY: clean-release
-clean-release: clean-release-git
+clean-release: clean-release-git  ## Clean release artifacts and temporary files
 	rm -rf $(RELEASE_DIR)
 	rm -rf dist
+
 
 ##@ Dependencies
 
@@ -191,12 +195,15 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+ENVSUBST ?= $(LOCALBIN)/envsubst-$(ENVSUBST_VERSION)
 
 ## Tool Versions
+KUBECTL_VERSION := v1.28.9
 KUSTOMIZE_VERSION ?= v5.3.0
 CONTROLLER_TOOLS_VERSION ?= v0.14.0
 ENVTEST_VERSION ?= latest
 GOLANGCI_LINT_VERSION ?= v1.54.2
+ENVSUBST_VERSION := v1.2.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -217,6 +224,11 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	$(call go-install-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint,${GOLANGCI_LINT_VERSION})
+
+.PHONY: envsubst
+envsubst: $(ENVSUBST) ## Download envsubst locally if necessary.
+$(ENVSUBST): $(LOCALBIN)
+	$(call go-install-tool,$(ENVSUBST),github.com/a8m/envsubst/cmd/envsubst,$(ENVSUBST_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
