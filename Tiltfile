@@ -1,13 +1,13 @@
 # -*- mode: Python -*-
 
-envsubst_cmd = "./hack/tools/bin"
-tools_bin = "./hack/tools/bin"
+envsubst_cmd = "bin/envsubst-v1.2.0"
+tools_bin = "bin"
 
 #Add tools to path
 os.putenv('PATH', os.getenv('PATH') + ':' + tools_bin)
 
 update_settings(k8s_upsert_timeout_secs=60)  # on first tilt up, often can take longer than 30 seconds
-
+allow_k8s_contexts(k8s_context())
 # set defaults
 settings = {
     "allowed_contexts": [
@@ -128,7 +128,7 @@ def capvultr():
         vultr_extra_args = settings.get("extra_args").get("vultr")
         if vultr_extra_args:
             yaml_dict = decode_yaml_stream(yaml)
-            append_arg_for_container_in_deployment(yaml_dict, "controller-manager", "cluster-api-provider-vultr-system", "capvultr-controller-image", vultr_extra_args)
+            append_arg_for_container_in_deployment(yaml_dict, "controller-manager", "capvultr-system", "cluster-api-provider-vultr", vultr_extra_args)
             yaml = str(encode_yaml_stream(yaml_dict))
             yaml = fixup_yaml_empty_arrays(yaml)
 
@@ -136,7 +136,7 @@ def capvultr():
     local_resource(
         "manager",
         cmd = 'mkdir -p .tiltbuild;CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags \'-extldflags "-static"\' -o .tiltbuild/manager',
-        deps = ["api", "cloud", "config", "internal","util", "go.mod", "go.sum", "main.go"]
+        deps = ["api", "cloud", "config", "internal", "cmd", "go.mod", "go.sum"]
     )
 
     dockerfile_contents = "\n".join([
@@ -184,7 +184,7 @@ def base64_decode(to_decode):
     return str(decode_blob)
 
 def kustomizesub(folder):
-    yaml = local('hack/kustomize-sub.sh {}'.format(folder), quiet=True)
+    yaml = local('scripts/kustomize-sub.sh {}'.format(folder), quiet=True)
     return yaml
 
 def waitforsystem():

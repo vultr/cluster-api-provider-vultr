@@ -27,7 +27,7 @@ import (
 	"github.com/vultr/cluster-api-provider-vultr/test/utils"
 )
 
-const namespace = "cluster-api-provider-vultr-system"
+const namespace = "capvultr-system"
 
 var _ = Describe("controller", Ordered, func() {
 	BeforeAll(func() {
