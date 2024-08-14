@@ -13,4 +13,4 @@ export VPCID="63692dfd-bea6-4e4e-8bb7-50de31887158"
 export SSHKEY_ID="c9db76ee-7b7a-43zz-a9fb-b4c772acdd41"
 
 #optional
-export VPC2ID=<vpc2_id> 
+#export VPC2ID=<vpc2_id> 
