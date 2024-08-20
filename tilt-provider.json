@@ -1,0 +1,17 @@
+{
+    "name": "vultr",
+    "config": {
+      "image": "gcr.io/k8s-staging-cluster-api-vultr/capvultr-controller-image",
+      "live_reload_deps": [
+        "cmd",
+        "go.mod",
+        "go.sum",
+        "api",
+        "cloud",
+        "internal",
+        "config"
+      ],
+      "label": "CAPVULTR",
+      "manager_name": "controller-manager"
+    }
+  }

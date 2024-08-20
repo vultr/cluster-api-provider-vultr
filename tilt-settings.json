@@ -1,0 +1,18 @@
+{
+    "allowed_contexts": [
+      "kind-capvultr"
+    ],
+    "default_registry": "sjc.vultrcr.com/dragoncity",
+    "provider_repos": [
+      "../cluster-api-provider-vultr"
+    ],
+    "enable_providers": [
+      "vultr",
+      "kubeadm-bootstrap",
+      "kubeadm-control-plane"
+    ],
+    "kustomize_substitutions": {
+      "VULTR_API_KEY": "yourapikey"
+    }
+  }
+  
