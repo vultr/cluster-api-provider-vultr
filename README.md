@@ -25,7 +25,7 @@ This provider's versions are compatible with the following versions of Cluster A
 
 |                          | Cluster API v1beta1 (v1.7) |
 |--------------------------|:--------------------------:|
-| CAPVULTR v1beta1 (v0.0.1)  |             ✓              |
+| CAPVULTR v1beta1 (v0.1.0)  |             ✓              |
 
 
 ## Kubernetes versions with published Images
