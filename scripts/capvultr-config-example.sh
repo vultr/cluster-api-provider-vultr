@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #CAPVULTR  example configuration
-export KUBERNETES_VERSION=v1.28.9
+export KUBERNETES_VERSION=v1.29.7
 export CLUSTER_NAME="capi-test-cluster"
 export CONTROL_PLANE_MACHINE_COUNT=1
 export WORKER_MACHINE_COUNT=1
