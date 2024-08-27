@@ -100,7 +100,7 @@ Setting up environment variables: Config example can be found in scripts/capvult
 
 ```bash
 $ export CLUSTER_NAME=<clustername>
-$ export KUBERNETES_VERSION=v1.28.9
+$ export KUBERNETES_VERSION=v1.29.7
 $ export CONTROL_PLANE_MACHINE_COUNT=1
 $ export CONTROL_PLANE_PLANID=<plan_id>
 $ export WORKER_MACHINE_COUNT=1
