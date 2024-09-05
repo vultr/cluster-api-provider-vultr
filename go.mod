@@ -9,7 +9,7 @@ require (
 	github.com/onsi/gomega v1.32.0
 	github.com/pkg/errors v0.9.1
 	github.com/vultr/govultr/v3 v3.8.1
-	golang.org/x/oauth2 v0.18.0
+	golang.org/x/oauth2 v0.23.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
 	k8s.io/client-go v0.29.3
@@ -70,7 +70,6 @@ require (
 	golang.org/x/time v0.5.0 // indirect
 	golang.org/x/tools v0.17.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
