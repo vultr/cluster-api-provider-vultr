@@ -1,6 +1,7 @@
 module github.com/vultr/cluster-api-provider-vultr
 
 go 1.21
+toolchain go1.23.2
 
 require (
 	github.com/go-logr/logr v1.4.1
@@ -8,7 +9,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
 	github.com/pkg/errors v0.9.1
-	github.com/vultr/govultr/v3 v3.8.1
+	github.com/vultr/govultr/v3 v3.10.0
 	golang.org/x/oauth2 v0.18.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
