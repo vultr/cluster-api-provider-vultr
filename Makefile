@@ -1,5 +1,5 @@
 
-REGISTRY            ?= docker.io/vultr
+REGISTRY            ?= vultr
 IMAGE_NAME          ?= cluster-api-provider-vultr
 CONTROLLER_IMAGE    ?= $(REGISTRY)/$(IMAGE_NAME)
 TAG                 ?= v0.1.0
