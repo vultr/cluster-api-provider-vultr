@@ -59,6 +59,8 @@ spec:
         kubeletExtraArgs:
           cgroup-driver: systemd
           eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+          cloud-provider: external
+          provider-id: vultr://'{{ ds.meta_data["instance_id"] }}'
 ---
 kind: VultrMachineTemplate
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
@@ -127,3 +129,4 @@ spec:
             cloud-provider: external
             cgroup-driver: systemd
             eviction-hard: nodefs.available<0%,nodefs.inodesFree<0%,imagefs.available<0%
+            provider-id: vultr://'{{ ds.meta_data["instance_id"] }}'
