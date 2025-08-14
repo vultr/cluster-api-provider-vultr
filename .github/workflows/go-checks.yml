@@ -1,0 +1,10 @@
+name: Checks
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  checks:
+    uses: vultr/shared-actions/.github/workflows/go-checks.yml@main
+    with:
+      go_version: "1.21"
