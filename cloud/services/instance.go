@@ -89,7 +89,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	instanceReq := &govultr.InstanceCreateReq{
 		Label:      instanceName,
 		Hostname:   instanceName,
-		Region:     s.scope.Region(),
+		Region:     scope.VultrMachine.Spec.Region,
 		Plan:       scope.VultrMachine.Spec.PlanID,
 		SSHKeys:    sshKeyIDs,
 		SnapshotID: scope.VultrMachine.Spec.Snapshot,
