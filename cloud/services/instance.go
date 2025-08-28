@@ -100,6 +100,8 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	if scope.VultrMachine.Spec.VPCID != "" {
 		instanceReq.AttachVPC = append(instanceReq.AttachVPC, scope.VultrMachine.Spec.VPCID)
 	} else if scope.VultrMachine.Spec.VPC2ID != "" {
+		// Deprecated: VPC2 is no longer supported and functionality will cease in a
+		// future release
 		instanceReq.AttachVPC2 = append(instanceReq.AttachVPC2, scope.VultrMachine.Spec.VPCID)
 	}
 

@@ -23,8 +23,9 @@ import "github.com/vultr/govultr/v3"
 type VultrAPIClients struct {
 	Instances     govultr.InstanceService
 	LoadBalancers govultr.LoadBalancerService
-	VPC2s         govultr.VPC2Service
-	VPCs          govultr.VPCService
-	SSHKeys       govultr.SSHKeyService
-	Snapshots     govultr.SnapshotService
+	// Deprecated: VPC2 is no longer supported
+	VPC2s     govultr.VPC2Service
+	VPCs      govultr.VPCService
+	SSHKeys   govultr.SSHKeyService
+	Snapshots govultr.SnapshotService
 }
