@@ -41,20 +41,20 @@ func NewClusterScope(params ClusterScopeParams) (*ClusterScope, error) {
 		return nil, fmt.Errorf("failed to create Vultr Client: %w", err)
 	}
 
-	if params.VultrAPIClients.Instances == nil {
-		params.VultrAPIClients.Instances = vultrClient.Instance
+	if params.Instances == nil {
+		params.Instances = vultrClient.Instance
 	}
 
-	if params.VultrAPIClients.LoadBalancers == nil {
-		params.VultrAPIClients.LoadBalancers = vultrClient.LoadBalancer
+	if params.LoadBalancers == nil {
+		params.LoadBalancers = vultrClient.LoadBalancer
 	}
 
-	if params.VultrAPIClients.Snapshots == nil {
-		params.VultrAPIClients.Snapshots = vultrClient.Snapshot
+	if params.Snapshots == nil {
+		params.Snapshots = vultrClient.Snapshot
 	}
 
-	if params.VultrAPIClients.SSHKeys == nil {
-		params.VultrAPIClients.SSHKeys = vultrClient.SSHKey
+	if params.SSHKeys == nil {
+		params.SSHKeys = vultrClient.SSHKey
 	}
 
 	helper, err := patch.NewHelper(params.VultrCluster, params.Client)
