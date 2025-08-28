@@ -58,6 +58,8 @@ type VultrMachineSpec struct {
 	VPCID string `json:"vpc_id,omitempty"`
 
 	// VPC2ID is the id of the VPC2.0 to be attched .
+	// Deprecated: VPC2 is no longer supported and functionality will cease in a
+	// future release
 	// +optional
 	VPC2ID string `json:"vpc2_id,omitempty"`
 }
