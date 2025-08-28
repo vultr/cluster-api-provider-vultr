@@ -88,7 +88,7 @@ func (r *VultrClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	defer cancel()
 
 	log := ctrl.LoggerFrom(ctx)
-	logger := ctrl.LoggerFrom(ctx).WithName("VultrClusterReconciler").WithValues("name", req.NamespacedName.String())
+	logger := ctrl.LoggerFrom(ctx).WithName("VultrClusterReconciler").WithValues("name", req.NamespacedName.String()) //nolint:staticcheck
 
 	// Fetch the VultrCluster.
 	vultrCluster := &infrav1.VultrCluster{}

@@ -36,7 +36,7 @@ import (
 // GetInstance retrieves an instance by its ID.
 func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 	if instanceID == "" {
-		s.scope.Logger.Info("VultrInstance does not have an instance id")
+		s.scope.Info("VultrInstance does not have an instance id")
 		return nil, nil
 	}
 
