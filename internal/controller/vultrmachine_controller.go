@@ -99,7 +99,7 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		Namespace: vultrMachine.Namespace,
 		Name:      cluster.Spec.InfrastructureRef.Name,
 	}
-	if err := r.Client.Get(ctx, vultrClusterName, vultrCluster); err != nil {
+	if err := r.Get(ctx, vultrClusterName, vultrCluster); err != nil {
 		log.Info("VultrCluster is not available yet.")
 		return ctrl.Result{}, nil
 	}
@@ -141,7 +141,7 @@ func (r *VultrMachineReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}()
 
-	if !vultrMachine.ObjectMeta.DeletionTimestamp.IsZero() {
+	if !vultrMachine.DeletionTimestamp.IsZero() {
 		return r.reconcileDelete(ctx, machineScope, clusterScope)
 	}
 
