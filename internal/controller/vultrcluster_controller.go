@@ -31,16 +31,13 @@ import (
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	//"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	//"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/pkg/errors"
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta1"
@@ -59,21 +56,22 @@ type VultrClusterReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VultrClusterReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
-	c, err := ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&infrav1.VultrCluster{}).
-		WithEventFilter(predicates.ResourceNotPaused(ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
-		Build(r)
+		WithEventFilter(predicates.ResourceNotPaused(mgr.GetScheme(), ctrl.LoggerFrom(ctx))). // don't queue reconcile if resource is paused
+		Watches(
+			&clusterv1.Cluster{}, // Add a watch on clusterv1.Cluster object for unpause notifications.
+			handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(
+				ctx,
+				infrav1.GroupVersion.WithKind("VultrCluster"),
+				mgr.GetClient(),
+				&infrav1.VultrCluster{},
+			)),
+			builder.WithPredicates(predicates.ClusterUnpaused(mgr.GetScheme(), ctrl.LoggerFrom(ctx))), // Filter for unpaused clusters
+		).
+		Complete(r)
 	if err != nil {
-		return errors.Wrapf(err, "error creating controller")
-	}
-
-	// Add a watch on clusterv1.Cluster object for unpause notifications.
-	if err = c.Watch(
-		source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-		handler.EnqueueRequestsFromMapFunc(clusterutil.ClusterToInfrastructureMapFunc(ctx, infrav1.GroupVersion.WithKind("VultrCluster"), mgr.GetClient(), &infrav1.VultrCluster{})),
-		predicates.ClusterUnpaused(ctrl.LoggerFrom(ctx)),
-	); err != nil {
-		return errors.Wrapf(err, "failed adding a watch for ready clusters")
+		return errors.Wrapf(err, "failed to build controller")
 	}
 
 	return nil
