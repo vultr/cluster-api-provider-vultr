@@ -29,28 +29,29 @@
 
 
 
-## Building images
+# Building Vultr Images with Image Builder
 
-Clone the image builder repository if you haven't already:
 
-     git clone https://github.com/kubernetes-sigs/image-builder.git
-
-Change directory to images/capi within the image builder repository:
+**Clone the Image Builder repository:**
+```bash
+git clone https://github.com/kubernetes-sigs/image-builder.git
+```
+Navigate to the capi images directory:
 
      cd image-builder/images/capi
 
-Generate a Vultr image (choosing Ubuntu in the example below):
+Build Vultr image:
 
      make build-vultr-ubuntu-2204
 
 
-List of available make commands for Vultr
+Available make Commands for Vultr
 ```
-../capi$ make help | grep vultr
+make help | grep vultr
 
-  deps-vultr                           Installs/checks dependencies for Vultr builds
-  build-vultr-ubuntu-2204              Builds Ubuntu 22.04 Vultr Snapshot
-  validate-vultr-ubuntu-2204           Validates Ubuntu 22.04 Vultr Snapshot Packer config
+deps-vultr                           Installs/checks dependencies for Vultr builds
+build-vultr-ubuntu-2204              Builds Ubuntu 22.04 Vultr Snapshot
+validate-vultr-ubuntu-2204           Validates Ubuntu 22.04 Vultr Snapshot Packer config
 ```
 
 Verify that the image is available in your account and remember the corresponding image ID:
@@ -85,22 +86,17 @@ You can now create your first workload cluster by running the following:
 
 ## Creating a workload cluster
 
+ **Set controller image**  
+   Edit `../default/manager_image_patch.yaml` and set `image` to your controller URL.
 
-Update value of image field below to your controller image URL in the Vultr provider.
-```
-../default/manager_image_patch.yaml
-```
-Add your VULTR_API_KEY to
-```
+ **Add API key**  
+   Edit `../default/credentials.yaml` and add your `VULTR_API_KEY`.
 
-../defaults/credentials.yaml
-```
-
-Setting up environment variables: Config example can be found in scripts/capvultr-config-example.sh 
+Setting up environment variables: Config example can be found in scripts/capvultr-config-example
 
 ```bash
  export CLUSTER_NAME=<clustername>
- export KUBERNETES_VERSION=v1.29.7
+ export KUBERNETES_VERSION=v1.32.4
  export CONTROL_PLANE_MACHINE_COUNT=1
  export CONTROL_PLANE_PLANID=<plan_id>
  export WORKER_MACHINE_COUNT=1
@@ -113,8 +109,7 @@ Setting up environment variables: Config example can be found in scripts/capvult
 ```
 
 ```
-chmod +x scripts/capvultr-config-example.sh 
-source scripts/capvultr-config-example.sh 
+source scripts/capvultr-config-example
 ```
 
 Create the workload cluster on the management cluster:
@@ -184,12 +179,25 @@ https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/#cilium-quic
 
 ### Deploy Vultr CCM and CSI
 
+#### Create Vultr secret
 ```bash
-# Create Vultr secret
 KUBECONFIG=capvultr-quickstart.kubeconfig kubectl create secret generic vultr-ccm --namespace kube-system --from-literal api-key=$VULTR_API_KEY
+```
 
-# Deploy Vultr Cloud Controller Manager
+#### Deploy Vultr Cloud Controller Manager
+```bash
 KUBECONFIG=capvultr-quickstart.kubeconfig kubectl apply -f https://raw.githubusercontent.com/vultr/vultr-cloud-controller-manager/master/docs/releases/latest.yml
+
+```
+
+#### Deploy Vultr CSI
+
+```bash
+KUBECONFIG=capvultr-quickstart.kubeconfig kubectl create secret generic vultr-csi --namespace kube-system --from-literal api-key=$VULTR_API_KEY
+```
+
+```bash
+KUBECONFIG=capvultr-quickstart.kubeconfig kubectl apply -f https://raw.githubusercontent.com/vultr/vultr-csi/refs/heads/master/docs/releases/latest.yml
 
 ```
 
