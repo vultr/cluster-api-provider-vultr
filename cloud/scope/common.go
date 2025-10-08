@@ -22,3 +22,7 @@ func CreateVultrClient() (*govultr.Client, error) {
 
 	return vultrClient, nil
 }
+
+func MachineOnly() bool {
+	return os.Getenv("VULTR_MACHINE_ONLY") == "true"
+}
