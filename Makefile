@@ -1,7 +1,7 @@
 
 REGISTRY            ?= vultr
 IMAGE_NAME          ?= cluster-api-provider-vultr
-CONTROLLER_IMAGE    ?= $(REGISTRY)/$(IMAGE_NAME)
+CONTROLLER_IMAGE    ?= $(REGISTRY)/$(IMAGE_NAME):$(TAG)
 TAG                 ?= v0.2.0
 ARCH 				?= amd64
 
@@ -87,11 +87,11 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-	docker build -t $(CONTROLLER_IMAGE):$(TAG) .
+	docker build -t $(CONTROLLER_IMAGE) .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
-	docker push $(CONTROLLER_IMAGE):$(TAG)
+	docker push $(CONTROLLER_IMAGE)
 
 # PLATFORMS defines the target platforms for the manager image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
