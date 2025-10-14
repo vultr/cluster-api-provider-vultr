@@ -59,6 +59,18 @@ func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.
 		BalancingAlgorithm: spec.GenericInfo.BalancingAlgorithm,
 	}
 
+	if len(spec.FirewallRules) > 0 {
+		var fwRules []govultr.LBFirewallRule
+		for _, r := range spec.FirewallRules {
+			fwRules = append(fwRules, govultr.LBFirewallRule{
+				IPType: r.IPType,
+				Port:   r.Port,
+				Source: r.Source,
+			})
+		}
+		createReq.FirewallRules = fwRules
+	}
+
 	lb, _, err := s.scope.LoadBalancers.Create(s.ctx, createReq)
 	if err != nil {
 		return nil, err
