@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
-	capierrors "sigs.k8s.io/cluster-api/errors"
+	capierrors "sigs.k8s.io/cluster-api/errors" //nolint:staticcheck
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -143,7 +143,7 @@ func (m *MachineScope) GetProviderID() string {
 // SetProviderID sets the VultrMachine providerID in spec from instance id.
 func (m *MachineScope) SetProviderID(instanceID string) {
 	pid := fmt.Sprintf("vultr://%s", instanceID)
-	m.VultrMachine.Spec.ProviderID = ptr.To[string](pid)
+	m.VultrMachine.Spec.ProviderID = ptr.To(pid)
 }
 
 // Name returns the VultrMachine name.
@@ -228,7 +228,7 @@ func (m *MachineScope) SetInstanceServerState(v infrav1.ServerState) {
 
 // SetFailureMessage sets the VultrMachine status error message.
 func (m *MachineScope) SetFailureMessage(v error) {
-	m.VultrMachine.Status.FailureMessage = ptr.To[string](v.Error())
+	m.VultrMachine.Status.FailureMessage = ptr.To(v.Error())
 }
 
 // SetAddresses sets the address status.
