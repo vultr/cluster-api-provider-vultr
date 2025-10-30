@@ -87,14 +87,15 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Preparing instance creation request payload")
 	instanceReq := &govultr.InstanceCreateReq{
-		Label:      instanceName,
-		Hostname:   instanceName,
-		Region:     scope.VultrMachine.Spec.Region,
-		Plan:       scope.VultrMachine.Spec.PlanID,
-		SSHKeys:    sshKeyIDs,
-		SnapshotID: scope.VultrMachine.Spec.Snapshot,
-		UserData:   encodedBootstrapData,
-		EnableIPv6: util.Pointer(true),
+		Label:           instanceName,
+		Hostname:        instanceName,
+		Region:          scope.VultrMachine.Spec.Region,
+		Plan:            scope.VultrMachine.Spec.PlanID,
+		SSHKeys:         sshKeyIDs,
+		SnapshotID:      scope.VultrMachine.Spec.Snapshot,
+		UserData:        encodedBootstrapData,
+		EnableIPv6:      util.Pointer(true),
+		FirewallGroupID: scope.VultrMachine.Spec.FirewallGroupID,
 	}
 
 	if scope.VultrMachine.Spec.VPCID != "" {

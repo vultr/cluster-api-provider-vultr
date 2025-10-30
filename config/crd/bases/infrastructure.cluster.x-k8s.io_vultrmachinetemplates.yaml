@@ -50,6 +50,10 @@ spec:
                     description: Spec is the specification of the desired behavior
                       of the machine.
                     properties:
+                      firewall_group_id:
+                        description: The Vultr firewall group ID to attach to the
+                          instance
+                        type: string
                       planID:
                         description: PlanID is the id of Vultr VPS plan (VPSPLANID).
                         type: string
@@ -62,8 +66,8 @@ spec:
                         description: The Vultr Region (DCID) the cluster lives on
                         type: string
                       snapshot_id:
-                        description: The Application image_id to use when deploying
-                          this instance.
+                        description: The Vultr snapshot_id to use when deploying this
+                          instance.
                         type: string
                       sshKey:
                         description: sshKey is the name of the ssh key to attach to
@@ -72,7 +76,7 @@ spec:
                           type: string
                         type: array
                       vpc_id:
-                        description: VPCID is the id of the VPC to be attched .
+                        description: VPCID is the id of the VPC to be attched.
                         type: string
                       vpc2_id:
                         description: |-
