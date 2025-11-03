@@ -2,7 +2,7 @@
 REGISTRY            ?= vultr
 IMAGE_NAME          ?= cluster-api-provider-vultr
 CONTROLLER_IMAGE    ?= $(REGISTRY)/$(IMAGE_NAME):$(TAG)
-TAG                 ?= v0.2.1
+TAG                 ?= v0.3.0
 ARCH 				?= amd64
 
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
