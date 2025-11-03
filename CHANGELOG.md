@@ -1,4 +1,11 @@
 # Changelog
+## [v0.3.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.2.1...v0.3.0) (2025-11-03)
+### Enhancements
+* Add firewall group support to VultrMacheine spec [PR 109](https://github.com/vultr/cluster-api-provider-vultr/pull/109)
+
+### Dependencies
+* Update cluster-api to v1.10.5, update controller-gen to v0.17.1, replace deprecated predicates [PR 87](https://github.com/vultr/cluster-api-provider-vultr/pull/87)
+
 ## [v0.2.1](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.2.0...v0.2.1) (2025-10-14)
 
 ### Automation
