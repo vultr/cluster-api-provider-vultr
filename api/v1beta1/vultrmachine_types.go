@@ -39,7 +39,7 @@ type VultrMachineSpec struct {
 	// +optional
 	ProviderID *string `json:"providerID,omitempty"`
 
-	//The Application image_id to use when deploying this instance.
+	//The Vultr snapshot_id to use when deploying this instance.
 	Snapshot string `json:"snapshot_id,omitempty"`
 
 	// PlanID is the id of Vultr VPS plan (VPSPLANID).
@@ -53,9 +53,13 @@ type VultrMachineSpec struct {
 	// +optional
 	SSHKey []string `json:"sshKey,omitempty"`
 
-	// VPCID is the id of the VPC to be attched .
+	// VPCID is the id of the VPC to be attched.
 	// +optional
 	VPCID string `json:"vpc_id,omitempty"`
+
+	//The Vultr firewall group ID to attach to the instance
+	// +optional
+	FirewallGroupID string `json:"firewall_group_id,omitempty"`
 
 	// VPC2ID is the id of the VPC2.0 to be attched .
 	// Deprecated: VPC2 is no longer supported and functionality will cease in a
