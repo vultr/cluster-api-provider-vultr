@@ -135,7 +135,10 @@ func (s *ClusterScope) SetControlPlaneEndpoint(apiEndpoint clusterv1.APIEndpoint
 	s.VultrCluster.Spec.ControlPlaneEndpoint = apiEndpoint
 }
 
-// // VPC gets the VultrCluster Spec Network VPC.
-// func (s *ClusterScope) VPC() *infrav1.VultrVPC {
-// 	return &s.VultrCluster.Spec.Network.VPCID
-// }
+// VPC returns the cluster VPCID if set
+func (s *ClusterScope) VPC() *string {
+	if s.VultrCluster.Spec.VPCID != "" {
+		return &s.VultrCluster.Spec.VPCID
+	}
+	return nil
+}

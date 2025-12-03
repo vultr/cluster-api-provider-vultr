@@ -53,7 +53,7 @@ type VultrMachineSpec struct {
 	// +optional
 	SSHKey []string `json:"sshKey,omitempty"`
 
-	// VPCID is the id of the VPC to be attched.
+	// VPCID is the id of the VPC to be attached.
 	// +optional
 	VPCID string `json:"vpc_id,omitempty"`
 
@@ -61,7 +61,7 @@ type VultrMachineSpec struct {
 	// +optional
 	FirewallGroupID string `json:"firewall_group_id,omitempty"`
 
-	// VPC2ID is the id of the VPC2.0 to be attched .
+	// VPC2ID is the id of the VPC2.0 to be attached.
 	// Deprecated: VPC2 is no longer supported and functionality will cease in a
 	// future release
 	// +optional

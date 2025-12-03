@@ -111,7 +111,6 @@ type GenericInfo struct {
 	SSLRedirect        *bool           `json:"ssl_redirect,omitempty"`
 	StickySessions     *StickySessions `json:"sticky_sessions,omitempty"`
 	ProxyProtocol      *bool           `json:"proxy_protocol,omitempty"`
-	PrivateNetwork     string          `json:"private_network,omitempty"`
 	VPC                string          `json:"vpc,omitempty"`
 }
 
