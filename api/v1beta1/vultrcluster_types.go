@@ -43,6 +43,10 @@ type VultrClusterSpec struct {
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint"`
+
+	// VPCID is the Vultr VPC ID used for the cluster's load balancer.
+	// +optional
+	VPCID string `json:"vpc_id,omitempty"`
 }
 
 // VultrClusterStatus defines the observed state of VultrCluster

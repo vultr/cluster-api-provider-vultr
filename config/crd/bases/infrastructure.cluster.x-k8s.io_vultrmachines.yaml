@@ -85,11 +85,11 @@ spec:
                   type: string
                 type: array
               vpc_id:
-                description: VPCID is the id of the VPC to be attched.
+                description: VPCID is the id of the VPC to be attached.
                 type: string
               vpc2_id:
                 description: |-
-                  VPC2ID is the id of the VPC2.0 to be attched .
+                  VPC2ID is the id of the VPC2.0 to be attached.
                   Deprecated: VPC2 is no longer supported and functionality will cease in a
                   future release
                 type: string

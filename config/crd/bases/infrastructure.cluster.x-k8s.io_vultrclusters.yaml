@@ -118,8 +118,6 @@ spec:
                         properties:
                           balancing_algorithm:
                             type: string
-                          private_network:
-                            type: string
                           proxy_protocol:
                             type: boolean
                           ssl_redirect:
@@ -177,6 +175,10 @@ spec:
                 type: object
               region:
                 description: The Vultr Region (DCID) the cluster lives on
+                type: string
+              vpc_id:
+                description: VPCID is the Vultr VPC ID used for the cluster's load
+                  balancer.
                 type: string
             required:
             - region

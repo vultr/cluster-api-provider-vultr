@@ -40,6 +40,7 @@ func (s *Service) CreateLoadBalancer(spec *infrav1.VultrLoadBalancer) (*govultr.
 	createReq := &govultr.LoadBalancerReq{
 		Label:  name,
 		Region: s.scope.Region(),
+		VPC:    s.scope.VPC(),
 		ForwardingRules: []govultr.ForwardingRule{
 			{
 				FrontendProtocol: "tcp",
