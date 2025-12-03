@@ -24,7 +24,7 @@ type VultrAPIClients struct {
 	Instances     govultr.InstanceService
 	LoadBalancers govultr.LoadBalancerService
 	// Deprecated: VPC2 is no longer supported
-	VPC2s     govultr.VPC2Service
+	VPC2s     govultr.VPC2Service //nolint:staticcheck
 	VPCs      govultr.VPCService
 	SSHKeys   govultr.SSHKeyService
 	Snapshots govultr.SnapshotService
