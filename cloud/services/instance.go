@@ -96,6 +96,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 		UserData:        encodedBootstrapData,
 		EnableIPv6:      util.Pointer(true),
 		FirewallGroupID: scope.VultrMachine.Spec.FirewallGroupID,
+		VPCOnly:         util.Pointer(scope.VultrMachine.Spec.VPCOnly),
 	}
 
 	if scope.VultrMachine.Spec.VPCID != "" {
