@@ -78,6 +78,10 @@ spec:
                       vpc_id:
                         description: VPCID is the id of the VPC to be attached.
                         type: string
+                      vpc_only:
+                        description: VPCOnly indicates that the VPS will not receive
+                          a public IP or public NIC when true.
+                        type: boolean
                       vpc2_id:
                         description: |-
                           VPC2ID is the id of the VPC2.0 to be attached.

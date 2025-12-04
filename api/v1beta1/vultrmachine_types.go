@@ -57,6 +57,9 @@ type VultrMachineSpec struct {
 	// +optional
 	VPCID string `json:"vpc_id,omitempty"`
 
+	//VPCOnly indicates that the VPS will not receive a public IP or public NIC when true.
+	VPCOnly bool `json:"vpc_only,omitempty"`
+
 	//The Vultr firewall group ID to attach to the instance
 	// +optional
 	FirewallGroupID string `json:"firewall_group_id,omitempty"`
