@@ -1,4 +1,12 @@
 # Changelog
+## [v0.4.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.3.0...v0.4.0) (2025-12-04)
+### Enhancements
+* Add VPC ID field to VultrCluster CRDs [PR 118](https://github.com/vultr/cluster-api-provider-vultr/pull/118)
+* Add VPC Only field to VultrMachine CRDs [PR 120](https://github.com/vultr/cluster-api-provider-vultr/pull/120)
+
+### Dependencies
+* Update govultr from v3.23.0 to v3.25.0 [PR 119](https://github.com/vultr/cluster-api-provider-vultr/pull/119)
+
 ## [v0.3.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.2.1...v0.3.0) (2025-11-03)
 ### Enhancements
 * Add firewall group support to VultrMacheine spec [PR 109](https://github.com/vultr/cluster-api-provider-vultr/pull/109)
