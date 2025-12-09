@@ -5,8 +5,8 @@ go 1.24
 require (
 	github.com/go-logr/logr v1.4.3
 	github.com/labstack/gommon v0.4.2
-	github.com/onsi/ginkgo/v2 v2.25.2
-	github.com/onsi/gomega v1.38.2
+	github.com/onsi/ginkgo/v2 v2.25.3
+	github.com/onsi/gomega v1.38.3
 	github.com/pkg/errors v0.9.1
 	github.com/vultr/govultr/v3 v3.25.0
 	golang.org/x/oauth2 v0.30.0
