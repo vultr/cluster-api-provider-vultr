@@ -7,6 +7,9 @@
 ### Dependencies
 * Update govultr from v3.23.0 to v3.25.0 [PR 119](https://github.com/vultr/cluster-api-provider-vultr/pull/119)
 
+### Documentation
+* Update metadata.yaml contract [PR 138](https://github.com/vultr/cluster-api-provider-vultr/pull/138)
+
 ## [v0.3.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.2.1...v0.3.0) (2025-11-03)
 ### Enhancements
 * Add firewall group support to VultrMacheine spec [PR 109](https://github.com/vultr/cluster-api-provider-vultr/pull/109)

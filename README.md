@@ -21,12 +21,11 @@ Check out the [Cluster API Quick Start](docs/getting-started.md) to create your 
 
 ### Cluster API Versions
 
-This provider's versions are compatible with the following versions of Cluster API:
+This provider's versions are compatible with the following v1beta1 versions of Cluster API:
 
-|                          | Cluster API v1beta1 (v1.7) |
-|--------------------------|:--------------------------:|
-| CAPVULTR v1beta1 (v0.1.0)  |             ✓              |
-
+| CAPVULTR Version       | CAPI v1.7 | CAPI v1.8 | CAPI v1.9 | CAPI v1.10 |
+|------------------------|:---------:|:---------:|:---------:|:----------:|
+| v0.4.0                   |     ✓     |     ✓     |     ✓     |     ✓      |
 
 ## Kubernetes versions with published Images
 
