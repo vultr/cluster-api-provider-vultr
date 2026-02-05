@@ -172,6 +172,9 @@ spec:
                   - type
                   type: object
                 type: array
+              cpu:
+                description: CPU represents the number of virtual CPUs of the instance.
+                type: integer
               failureMessage:
                 description: |-
                   FailureMessage will be set in the event that there is a terminal problem
@@ -213,6 +216,9 @@ spec:
               powerStatus:
                 description: PowerStatus represents that the VPS is powerd on or not
                 type: string
+              ram:
+                description: RAM represents the amount of memory in MB of the instance.
+                type: integer
               ready:
                 description: Ready represents the infrastructure is ready to be used
                   or not.
@@ -220,6 +226,9 @@ spec:
               serverState:
                 description: ServerState represents a detail of server state.
                 type: string
+              storage:
+                description: Storage represents the disk size in GB of the instance.
+                type: integer
               subscriptionStatus:
                 description: ServerStatus represents the status of subscription.
                 type: string

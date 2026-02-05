@@ -240,3 +240,18 @@ func (m *MachineScope) SetAddresses(addrs []corev1.NodeAddress) {
 func (m *MachineScope) SetFailureReason(v capierrors.MachineStatusError) {
 	m.VultrMachine.Status.FailureReason = &v
 }
+
+// SetCPU sets the VultrMachine CPU status.
+func (m *MachineScope) SetCPU(v int) {
+	m.VultrMachine.Status.CPU = v
+}
+
+// SetRAM sets the VultrMachine RAM status.
+func (m *MachineScope) SetRAM(v int) {
+	m.VultrMachine.Status.RAM = v
+}
+
+// SetStorage sets the VultrMachine Storage status.
+func (m *MachineScope) SetStorage(v int) {
+	m.VultrMachine.Status.Storage = v
+}

@@ -200,6 +200,9 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	machineScope.SetProviderID(instance.ID)
 	r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "SetInstanceStatus", "Setting Instance Status %s", instance.Label)
 	machineScope.SetInstanceStatus(infrav1.SubscriptionStatus(instance.Status))
+	machineScope.SetCPU(instance.VCPUCount)
+	machineScope.SetRAM(instance.RAM)
+	machineScope.SetStorage(instance.Disk)
 
 	if strings.Contains(instance.Label, "control-plane") {
 		r.Recorder.Eventf(vultrmachine, corev1.EventTypeNormal, "AddInstanceToVLB", "Instance %s is a control plane node, adding to VLB", instance.ID)

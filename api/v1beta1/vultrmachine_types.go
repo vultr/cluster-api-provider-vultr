@@ -78,6 +78,18 @@ type VultrMachineStatus struct {
 	// +optional
 	Ready bool `json:"ready"`
 
+	// CPU represents the number of virtual CPUs of the instance.
+	// +optional
+	CPU int `json:"cpu,omitempty"`
+
+	// RAM represents the amount of memory in MB of the instance.
+	// +optional
+	RAM int `json:"ram,omitempty"`
+
+	// Storage represents the disk size in GB of the instance.
+	// +optional
+	Storage int `json:"storage,omitempty"`
+
 	// Addresses contains the Vultr instance associated addresses.
 	Addresses []corev1.NodeAddress `json:"addresses,omitempty"`
 
