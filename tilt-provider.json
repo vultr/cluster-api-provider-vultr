@@ -1,7 +1,7 @@
 {
     "name": "vultr",
     "config": {
-      "image": "gcr.io/k8s-staging-cluster-api-vultr/capvultr-controller-image",
+      "image": "docker.io/vultr/cluster-api-provider-vultr",
       "live_reload_deps": [
         "cmd",
         "go.mod",

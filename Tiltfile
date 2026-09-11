@@ -16,7 +16,7 @@ settings = {
     "deploy_cert_manager": True,
     "preload_images_for_kind": True,
     "kind_cluster_name": "capvultr",
-    "capi_version": "v1.11.2",
+    "capi_version": "v1.13.2",
     "cert_manager_version": "v1.5.3",
     "kubernetes_version": "v1.32.4",
     "trigger_mode": "manual",
@@ -156,7 +156,7 @@ def capvultr():
     # Set up an image build for the provider. The live update configuration syncs the output from the local_resource
     # build into the container.
     docker_build(
-        ref = "sjc.vultrcr.com/dragoncity/cluster-api-provider-vultr:v0.5.0-beta.1",
+        ref = "docker.io/vultr/cluster-api-provider-vultr",
         context = "./.tiltbuild/",
         dockerfile_contents = dockerfile_contents,
         target = "tilt",

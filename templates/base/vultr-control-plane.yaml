@@ -7,6 +7,9 @@ spec:
     spec:
       kubeadmConfigSpec:
         initConfiguration:
+          # wait for the Vultr load balancer to start forwarding (kubeadm default is 60s)
+          timeouts:
+            kubernetesAPICallSeconds: 300
           nodeRegistration:
             criSocket: unix:///var/run/containerd/containerd.sock
             kubeletExtraArgs:
@@ -17,6 +20,9 @@ spec:
             - name: cloud-provider
               value: external
         joinConfiguration:
+          # wait for the Vultr load balancer to start forwarding (kubeadm default is 60s)
+          timeouts:
+            kubernetesAPICallSeconds: 300
           nodeRegistration:
             criSocket: unix:///var/run/containerd/containerd.sock
             kubeletExtraArgs:

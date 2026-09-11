@@ -30,5 +30,3 @@ go.work
 # Tilt build artifacts
 .tiltbuild/
 
-# Local config with sensitive values
-config/default/manager_image_patch.yaml
