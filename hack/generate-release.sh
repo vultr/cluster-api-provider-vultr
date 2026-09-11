@@ -6,7 +6,7 @@ REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 RELEASE_DIR="${REPO_ROOT}/out"
 FLAVORS_DIR="${REPO_ROOT}/templates/flavors"
 # Passed in by the Makefile (tracks KUSTOMIZE_VERSION); fallback for manual runs.
-KUSTOMIZE="${KUSTOMIZE:-${REPO_ROOT}/bin/kustomize-v5.7.1}"
+KUSTOMIZE="${KUSTOMIZE:-${REPO_ROOT}/bin/kustomize-v5.8.1}"
 
 SUPPORTED_FLAVORS=(
     "default"
