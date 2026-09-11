@@ -61,7 +61,7 @@ var _ = Describe("controller", Ordered, func() {
 
 			// projectimage stores the name of the image used in the example
 			// var projectimage = "example.com/cluster-api-provider-vultr:v0.0.1"
-			var projectimage = "vultr/cluster-api-provider-vultr:v0.4.0"
+			var projectimage = "vultr/cluster-api-provider-vultr:v0.5.0"
 
 			By("building the manager(Operator) image")
 			cmd := exec.Command("make", "docker-build", fmt.Sprintf("IMG=%s", projectimage))

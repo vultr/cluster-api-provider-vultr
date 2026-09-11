@@ -1,5 +1,5 @@
 
-REGISTRY            ?= vultr
+REGISTRY            ?= docker.io/vultr
 IMAGE_NAME          ?= cluster-api-provider-vultr
 CONTROLLER_IMAGE    ?= $(REGISTRY)/$(IMAGE_NAME):$(TAG)
 TAG                 ?= v0.4.0
@@ -179,14 +179,15 @@ tilt-down: ## Delete kind cluster.
 RELEASE_DIR ?= out
 
 .PHONY: release
-release: kustomize clean-release set-manifest-image generate-release release-metadata clean-release-git
+release: kustomize clean-release set-manifest-image generate-release release-metadata ## Build release artifacts into $(RELEASE_DIR)
+	$(MAKE) clean-release-git
 
 $(RELEASE_DIR):
 	mkdir -p $(RELEASE_DIR)/
 
 .PHONY: generate-release
 generate-release: $(KUSTOMIZE) $(RELEASE_DIR)
-	bash hack/generate-release.sh
+	KUSTOMIZE=$(KUSTOMIZE) bash hack/generate-release.sh
 
 .PHONY: release-metadata
 release-metadata: $(RELEASE_DIR)
@@ -198,7 +199,7 @@ set-manifest-image: ## Update kustomize image patch file for default resource.
 
 .PHONY: release-manifests
 release-manifests: $(KUSTOMIZE) $(RELEASE_DIR) ## Builds the manifests to publish with a release
-	kustomize build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
+	$(KUSTOMIZE) build config/default > $(RELEASE_DIR)/infrastructure-components.yaml
 
 ##@ Cleanup:
 
