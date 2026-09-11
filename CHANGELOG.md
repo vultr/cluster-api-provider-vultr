@@ -1,4 +1,25 @@
 # Changelog
+## [v0.5.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.4.0...v0.5.0) (2026-09-11)
+### Breaking Changes
+* Migrate the API to `v1beta2` (Cluster API `v1beta2` contract). The `v1beta1` API is removed and there is no conversion webhook, so existing `v1beta1` `VultrCluster`/`VultrMachine` objects are not upgraded in place — recreate clusters or migrate manually. Requires Cluster API v1.11 or newer. [PR 143](https://github.com/vultr/cluster-api-provider-vultr/pull/143)
+
+### Enhancements
+* Add ClusterClass and `cluster-template` flavors (`clusterclass-kubeadm`, `cilium`, `vultr-ccm`, `vultr-csi`, `full`) published as release assets [PR 143](https://github.com/vultr/cluster-api-provider-vultr/pull/143)
+* Add `cpu`, `ram` and `storage` to `VultrMachine` status [PR 147](https://github.com/vultr/cluster-api-provider-vultr/pull/147)
+
+### Bug Fixes
+* Set `kubernetesAPICallSeconds: 300` in the control-plane kubeadm config of all templates so `kubeadm init` waits for the Vultr load balancer instead of timing out after 60s [PR 162](https://github.com/vultr/cluster-api-provider-vultr/pull/162)
+* Grant the controller `create`/`patch`/`update` on `events.k8s.io` events; the controllers use the `events.k8s.io` recorder and were denied [PR 162](https://github.com/vultr/cluster-api-provider-vultr/pull/162)
+
+### Automation
+* Replace deprecated `gcr.io/kubebuilder/kube-rbac-proxy` image with `registry.k8s.io/kubebuilder/kube-rbac-proxy:v0.16.0` [PR 160](https://github.com/vultr/cluster-api-provider-vultr/pull/160)
+* Fix the release workflow so `infrastructure-components.yaml` pins the released image tag; add the `0.5` release series to `metadata.yaml` [PR 162](https://github.com/vultr/cluster-api-provider-vultr/pull/162)
+
+### Dependencies
+* Go 1.24 → 1.25; cluster-api v1.10.5 → v1.13.6; controller-runtime v0.20.4 → v0.23.3; k8s.io/* v0.32.3 → v0.35.8 [PR 143](https://github.com/vultr/cluster-api-provider-vultr/pull/143), [PR 163](https://github.com/vultr/cluster-api-provider-vultr/pull/163)
+* Update govultr from v3.25.0 to v3.33.0 [PR 163](https://github.com/vultr/cluster-api-provider-vultr/pull/163)
+* Update kustomize to v5.8.1, golangci-lint to v2.13.2, kubectl to v1.35.8; pin setup-envtest to v0.25.0 and test against Kubernetes 1.35.0 [PR 163](https://github.com/vultr/cluster-api-provider-vultr/pull/163)
+
 ## [v0.4.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.3.0...v0.4.0) (2025-12-04)
 ### Enhancements
 * Add VPC ID field to VultrCluster CRDs [PR 118](https://github.com/vultr/cluster-api-provider-vultr/pull/118)
