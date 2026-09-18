@@ -169,6 +169,12 @@ capvultr-quickstart-md-0-b54j9-2szdn      NotReady   <none>          14m   v1.28
 capvultr-quickstart-md-0-b54j9-vb5tz      NotReady   <none>          14m   v1.28.9
 ```
 
+### Private/VPC Only Nodes/Instances
+
+To create private instances/k8s nodes without a public IPv4 address, set `vpc_only: true` on the `VultrMachineTemplate.spec.template.spec` entries in the rendered cluster manifest.
+
+When using private instances, also populate `spec.vpc_id` on the `VultrCluster`. This ensures the control plane load balancer is created in the same VPC and can reach the control plane nodes.
+
 ### Deploy CNI
 
 Cilium is used here as an example but you can bring your own CNI.
