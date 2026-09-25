@@ -10,13 +10,13 @@ spec:
       csi: ${CLUSTER_NAME}-vultr
   resources:
   - kind: ConfigMap
-    name: vultr-csi-manifests
+    name: vultr-${CLUSTER_NAME}-csi-manifests
   strategy: Reconcile
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: vultr-csi-manifests
+  name: vultr-${CLUSTER_NAME}-csi-manifests
 data:
   manifests: |
     apiVersion: storage.k8s.io/v1
@@ -425,7 +425,6 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: vultr-${CLUSTER_NAME}-csi-secret
-  namespace: default
 type: addons.cluster.x-k8s.io/resource-set
 stringData:
   vultr-csi.yaml: |
