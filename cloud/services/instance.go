@@ -97,6 +97,11 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 		EnableIPv6: util.Pointer(true),
 	}
 
+	if scope.VultrMachine.Spec.VPCOnly {
+		instanceReq.VPCOnly = util.Pointer(true)
+		instanceReq.DisablePublicIPv4 = util.Pointer(true)
+	}
+
 	if scope.VultrMachine.Spec.VPCID != "" {
 		instanceReq.AttachVPC = append(instanceReq.AttachVPC, scope.VultrMachine.Spec.VPCID)
 	}
