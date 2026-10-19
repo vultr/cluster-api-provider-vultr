@@ -49,6 +49,9 @@ func (s *Service) GetBareMetalServer(id string) (*govultr.BareMetalServer, error
 		}
 		return nil, errors.Wrapf(err, "failed to get bare metal server with ID %q", id)
 	}
+	if server == nil {
+		return nil, errors.Errorf("Vultr API returned HTTP %d without a server for ID %q", responseCode(resp), id)
+	}
 
 	return server, nil
 }
@@ -140,9 +143,12 @@ func (s *Service) CreateBareMetalServer(ctx context.Context, machineScope *scope
 	req := buildBareMetalCreateRequest(machineScope.VultrBareMetalMachine.Spec, machineScope.Name(), sshKeyIDs, encodedUserData, tags)
 
 	s.scope.V(2).Info("Creating bare metal server with Vultr API", "region", req.Region, "plan", req.Plan)
-	server, _, err := s.scope.BareMetal.Create(s.ctx, req)
+	server, resp, err := s.scope.BareMetal.Create(s.ctx, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create bare metal server")
+	}
+	if server == nil || server.ID == "" {
+		return nil, errors.Errorf("Vultr API returned HTTP %d without a server for the create of %q", responseCode(resp), machineScope.Name())
 	}
 	s.scope.V(2).Info("Successfully created bare metal server", "server-id", server.ID)
 

@@ -18,8 +18,8 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +44,7 @@ import (
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
 	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
+	"github.com/vultr/govultr/v3"
 )
 
 // VultrMachineReconciler reconciles a VultrMachine object
@@ -158,8 +159,8 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	machineScope.Info("Reconciling VultrMachine")
 	vultrMachine := machineScope.VultrMachine
 
-	// Early exit if machine infrastructure is in a error state
-	if conditions.IsFalse(vultrMachine, v1beta2.MachineReadyCondition) {
+	// Early exit only for terminal failures; anything else is retried.
+	if machineScope.HasTerminalFailure() {
 		machineScope.Info("Machine infrastructure has failed, skipping reconciliation")
 		return reconcile.Result{}, nil
 	}
@@ -169,50 +170,37 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 
 	if !conditions.IsTrue(machineScope.Cluster, clusterv1.InfrastructureReadyCondition) {
 		machineScope.Info("Cluster infrastructure is not ready yet")
+		machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceWaitingForClusterInfrastructureReason, "Waiting for cluster infrastructure")
 		return reconcile.Result{}, nil
 	}
 
 	// Ensure bootstrap data is available before creating instance
 	if machineScope.Machine.Spec.Bootstrap.DataSecretName == nil {
 		machineScope.Info("Bootstrap data secret reference is not yet available")
+		machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceWaitingForBootstrapDataReason, "Waiting for bootstrap data")
 		return reconcile.Result{}, nil
 	}
 
-	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceServiceInitializing", "Initializing", "Initializing instance service")
 	instanceSvc := services.NewService(ctx, clusterScope)
-	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceServiceInitialized", "Initialized", "Instance service initialized")
 
-	machineID := machineScope.GetInstanceID()
-	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceRetrieving", "Retrieving", "Retrieving instance with ID %s", machineID)
-	instance, err := instanceSvc.GetInstance(machineID)
+	instance, err := r.findOrCreateInstance(instanceSvc, machineScope)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
 	if instance == nil {
-		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceCreating", "Creating", "Instance is nil, attempting create")
-		instance, err = instanceSvc.CreateInstance(machineScope)
-		instancePayload, _ := json.Marshal(vultrMachine)
-		machineScope.Info("Created new instance", "payload", string(instancePayload))
-		if err != nil {
-			r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "InstanceCreatingError", "CreateFailed",
-				"Failed to create instance for VultrMachine %s/%s: %v", vultrMachine.Namespace, vultrMachine.Name, err)
-			conditions.Set(vultrMachine, metav1.Condition{
-				Type:               v1beta2.MachineReadyCondition,
-				Status:             metav1.ConditionFalse,
-				Reason:             "InstanceCreationFailed",
-				Message:            err.Error(),
-				LastTransitionTime: metav1.Now(),
-			})
-			vultrMachine.Status.Initialization.Provisioned = false
-			return reconcile.Result{}, err
+		// Terminal failure recorded.
+		return reconcile.Result{}, nil
+	}
+
+	// Persist the ID first so a later error cannot orphan the instance.
+	if machineScope.GetInstanceID() != instance.ID {
+		machineScope.SetProviderID(instance.ID)
+		if err := machineScope.PatchObject(ctx); err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to persist provider ID for instance %s", instance.ID)
 		}
-		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceCreated", "Created",
-			"Created new instance - %s, payload: %s", instance.Label, string(instancePayload))
 	}
 
 	// Set instance details on Machine
-	machineScope.SetProviderID(instance.ID)
 	machineScope.SetInstanceStatus(v1beta2.SubscriptionStatus(instance.Status))
 	machineScope.SetCPU(instance.VCPUCount)
 	machineScope.SetRAM(instance.RAM)
@@ -239,80 +227,117 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	if err != nil {
 		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "GetInstanceAddressFailed", "GetFailed",
 			"Failed to get address for instance %s: %v", instance.ID, err)
-		conditions.Set(vultrMachine, metav1.Condition{
-			Type:               v1beta2.MachineReadyCondition,
-			Status:             metav1.ConditionFalse,
-			Reason:             "FailedToGetInstanceAddress",
-			Message:            err.Error(),
-			LastTransitionTime: metav1.Now(),
-		})
+		machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceAddressFailedReason, err.Error())
 		return reconcile.Result{}, err
 	}
 	machineScope.SetAddresses(addrs)
 	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "GetInstanceAddressSuccess", "Retrieved",
 		"Successfully retrieved address for instance %s: %v", instance.ID, addrs)
 
-	// Set InfrastructureReadyCondition based on instance status
+	// Set the Ready condition based on instance status
 	switch v1beta2.SubscriptionStatus(instance.Status) {
 	case v1beta2.SubscriptionStatusPending:
-		machineScope.Info("Machine instance is pending", "instance-id", machineScope.GetInstanceID())
-		conditions.Set(vultrMachine, metav1.Condition{
-			Type:               v1beta2.MachineReadyCondition,
-			Status:             metav1.ConditionUnknown,
-			Reason:             "InstancePending",
-			Message:            "Instance is provisioning",
-			LastTransitionTime: metav1.Now(),
-		})
-
+		machineScope.Info("Machine instance is pending", "instance-id", instance.ID)
+		machineScope.SetReadyCondition(metav1.ConditionUnknown, v1beta2.InstancePendingReason, "Instance is provisioning")
 		return reconcile.Result{RequeueAfter: 10 * time.Second}, nil
 
 	case v1beta2.SubscriptionStatusActive:
-		machineScope.Info("Machine instance is active", "instance-id", machineScope.GetInstanceID())
-		conditions.Set(vultrMachine, metav1.Condition{
-			Type:               v1beta2.MachineReadyCondition,
-			Status:             metav1.ConditionTrue,
-			Reason:             "InstanceActive",
-			Message:            "Instance is active",
-			LastTransitionTime: metav1.Now(),
-		})
+		machineScope.Info("Machine instance is active", "instance-id", instance.ID)
+		machineScope.SetReadyCondition(metav1.ConditionTrue, v1beta2.InstanceActiveReason, "Instance is active")
 		machineScope.SetReady()
 		vultrMachine.Status.Initialization.Provisioned = true
 		return reconcile.Result{}, nil
 
 	default:
 		errMsg := fmt.Sprintf("Instance status %q is unexpected", instance.Status)
-		machineScope.Info("Machine instance status is unexpected", "instance-id", machineScope.GetInstanceID(), "status", instance.Status)
-		conditions.Set(vultrMachine, metav1.Condition{
-			Type:               v1beta2.MachineReadyCondition,
-			Status:             metav1.ConditionFalse,
-			Reason:             "UnexpectedStatus",
-			Message:            errMsg,
-			LastTransitionTime: metav1.Now(),
-		})
+		machineScope.Info("Machine instance status is unexpected", "instance-id", instance.ID, "status", instance.Status)
+		machineScope.SetTerminalFailure(v1beta2.InstanceUnexpectedStatusReason, errMsg)
 		return reconcile.Result{}, nil
 	}
+}
+
+// findOrCreateInstance finds the instance by providerID, then by label and
+// tags, and creates it only when the machine has no providerID. A machine whose
+// known instance is gone is failed, never re-created. Returns nil, nil after
+// recording a terminal failure.
+func (r *VultrMachineReconciler) findOrCreateInstance(instanceSvc *services.Service, machineScope *scope.MachineScope) (*govultr.Instance, error) {
+	vultrMachine := machineScope.VultrMachine
+
+	if id := machineScope.GetInstanceID(); id != "" {
+		instance, err := instanceSvc.GetInstance(id)
+		if err != nil {
+			return nil, err
+		}
+		if instance == nil {
+			msg := fmt.Sprintf("instance %s no longer exists", id)
+			r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "InstanceNotFound", "Failed", msg)
+			machineScope.SetTerminalFailure(v1beta2.InstanceNotFoundReason, msg)
+			return nil, nil
+		}
+		return instance, nil
+	}
+
+	instance, err := instanceSvc.FindInstanceForMachine(machineScope.Name(), machineScope.Role())
+	if err != nil {
+		return nil, err
+	}
+	if instance != nil {
+		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceAdopted", "Adopted",
+			"Adopted existing instance %s", instance.ID)
+		return instance, nil
+	}
+
+	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceCreating", "Creating", "No instance found, attempting create")
+	instance, err = instanceSvc.CreateInstance(machineScope)
+	if err != nil {
+		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "InstanceCreatingError", "CreateFailed",
+			"Failed to create instance for VultrMachine %s/%s: %v", vultrMachine.Namespace, vultrMachine.Name, err)
+		machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceCreationFailedReason, err.Error())
+		vultrMachine.Status.Initialization.Provisioned = false
+		return nil, err
+	}
+	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "InstanceCreated", "Created",
+		"Created new instance %s (%s)", instance.ID, instance.Label)
+	return instance, nil
 }
 
 func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.MachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) { //nolint: unparam
 	machineScope.Info("Reconciling delete VultrMachine")
 	vultrmachine := machineScope.VultrMachine
+	machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceDeletingReason, "Deleting the instance")
 
-	vultrcomputesvc := services.NewService(ctx, clusterScope)
-	vultrInstance, err := vultrcomputesvc.GetInstance(machineScope.GetInstanceID())
+	instanceSvc := services.NewService(ctx, clusterScope)
+
+	// Find by ID, or by label and tags when no ID was persisted. The finalizer
+	// goes only once Vultr confirms there is nothing left to delete.
+	var (
+		instance *govultr.Instance
+		err      error
+	)
+	if id := machineScope.GetInstanceID(); id != "" {
+		instance, err = instanceSvc.GetInstance(id)
+	} else {
+		instance, err = instanceSvc.FindInstanceForMachine(machineScope.Name(), machineScope.Role())
+	}
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if vultrInstance != nil {
-		if err := vultrcomputesvc.DeleteInstance(machineScope.GetInstanceID()); err != nil {
-			return reconcile.Result{}, err
-		}
-	} else {
-		clusterScope.V(2).Info("Unable to locate instance")
-		r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeWarning, "NoInstanceFound", "NotFound", "Skip deleting")
+	if instance == nil {
+		r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "NoInstanceFound", "NotFound", "No instance to delete")
+		controllerutil.RemoveFinalizer(vultrmachine, v1beta2.MachineFinalizer)
+		return reconcile.Result{}, nil
 	}
 
-	r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "InstanceDeleted", "Deleted", "Deleted a instance - %s", machineScope.Name())
+	if err := instanceSvc.DeleteInstance(instance.ID); err != nil {
+		if status, ok := vultrAPIErrorStatus(err); !ok || status != http.StatusNotFound {
+			r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeWarning, "InstanceDeleteFailed", "DeleteFailed",
+				"Failed to delete instance %s: %v", instance.ID, err)
+			return reconcile.Result{}, err
+		}
+	}
+
+	r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "InstanceDeleted", "Deleted", "Deleted instance %s", instance.ID)
 	controllerutil.RemoveFinalizer(vultrmachine, v1beta2.MachineFinalizer)
 	return reconcile.Result{}, nil
 }

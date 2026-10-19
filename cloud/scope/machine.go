@@ -21,15 +21,24 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta2"
 )
+
+// terminalMachineReasons are the Ready=False reasons after which the
+// controller stops reconciling a VultrMachine.
+var terminalMachineReasons = map[string]struct{}{
+	infrav1.InstanceNotFoundReason:         {},
+	infrav1.InstanceUnexpectedStatusReason: {},
+}
 
 // MachineScopeParams defines the input parameters used to create a new MachineScope.
 type MachineScopeParams struct {
@@ -101,6 +110,35 @@ func (m *MachineScope) PatchObject(ctx context.Context) error {
 // SetReady sets the VultrMachine Ready Status.
 func (m *MachineScope) SetReady() {
 	m.VultrMachine.Status.Ready = true
+}
+
+// SetReadyCondition sets the Ready condition on the VultrMachine.
+func (m *MachineScope) SetReadyCondition(status metav1.ConditionStatus, reason, message string) {
+	conditions.Set(m.VultrMachine, metav1.Condition{
+		Type:               infrav1.MachineReadyCondition,
+		Status:             status,
+		Reason:             reason,
+		Message:            message,
+		LastTransitionTime: metav1.Now(),
+	})
+}
+
+// SetTerminalFailure marks the infrastructure as failed with a terminal reason.
+// The controller stops reconciling the machine afterwards.
+func (m *MachineScope) SetTerminalFailure(reason, message string) {
+	m.SetReadyCondition(metav1.ConditionFalse, reason, message)
+	m.VultrMachine.Status.Ready = false
+	m.VultrMachine.Status.Initialization.Provisioned = false
+}
+
+// HasTerminalFailure returns true when Ready is False with a terminal reason.
+func (m *MachineScope) HasTerminalFailure() bool {
+	c := conditions.Get(m.VultrMachine, infrav1.MachineReadyCondition)
+	if c == nil || c.Status != metav1.ConditionFalse {
+		return false
+	}
+	_, terminal := terminalMachineReasons[c.Reason]
+	return terminal
 }
 
 // AddFinalizer adds a finalizer if not present and immediately patches the
