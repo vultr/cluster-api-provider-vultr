@@ -58,5 +58,5 @@ type VultrBareMetalMachineTemplateList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&VultrBareMetalMachineTemplate{}, &VultrBareMetalMachineTemplateList{})
+	objectTypes = append(objectTypes, &VultrBareMetalMachineTemplate{}, &VultrBareMetalMachineTemplateList{})
 }

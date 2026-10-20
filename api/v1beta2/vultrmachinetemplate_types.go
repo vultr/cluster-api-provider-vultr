@@ -45,5 +45,5 @@ type VultrMachineTemplateList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&VultrMachineTemplate{}, &VultrMachineTemplateList{})
+	objectTypes = append(objectTypes, &VultrMachineTemplate{}, &VultrMachineTemplateList{})
 }
