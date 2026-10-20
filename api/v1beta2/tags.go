@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Kubernetes Authors.
+Copyright 2024.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,45 +18,43 @@ package v1beta2
 
 import (
 	"fmt"
+	"slices"
 )
 
 // Tags defines a slice of tags.
 type Tags []string
 
 const (
-	// NameVultrProviderPrefix is the tag prefix for
-	// cluster-api-provider-Vultr owned components.
-	NameVultrProviderPrefix = "sigs-k8s-io:capvultr"
-	// APIServerRoleTagValue describes the value for the apiserver role.
-	APIServerRoleTagValue = "apiserver"
-	// NodeRoleTagValue describes the value for the node role.
-	NodeRoleTagValue = "node"
+	// TagPrefix prefixes every tag the provider sets. Each tag carries one
+	// fact, so Vultr's tag filter can select on any of them.
+	TagPrefix = "capvultr"
+	// ControlPlaneRoleTagValue is the role tag value for control plane machines.
+	ControlPlaneRoleTagValue = "control-plane"
+	// WorkerRoleTagValue is the role tag value for worker machines.
+	WorkerRoleTagValue = "worker"
 )
 
-// ClusterNameTag generates the tag with prefix `NameVultrProviderPrefix`
-// for resources associated with a cluster. It will generated tag like `sigs-k8s-io:capvultr:{clusterName}`.
-func ClusterNameTag(clusterName string) string {
-	return fmt.Sprintf("%s:%s", NameVultrProviderPrefix, clusterName)
+// ClusterTag returns `capvultr:cluster:{clusterName}`.
+func ClusterTag(clusterName string) string {
+	return fmt.Sprintf("%s:cluster:%s", TagPrefix, clusterName)
 }
 
-// ClusterNameRoleTag generates the tag with prefix `NameVultrProviderPrefix` and `RoleValue` as suffix
-// It will generated tag like `sigs-k8s-io:capv:{clusterName}:{role}`.
-func ClusterNameRoleTag(clusterName, role string) string {
-	return fmt.Sprintf("%s:%s:%s", NameVultrProviderPrefix, clusterName, role)
+// ClusterUIDTag returns `capvultr:cluster-uid:{uid}`.
+func ClusterUIDTag(clusterUID string) string {
+	return fmt.Sprintf("%s:cluster-uid:%s", TagPrefix, clusterUID)
 }
 
-// ClusterNameUIDRoleTag generates the tag with prefix `NameVultrProviderPrefix` and `RoleValue` as suffix
-// It will generated tag like `sigs-k8s-io:capvultr:{clusterName}:{UID}:{role}`.
-func ClusterNameUIDRoleTag(clusterName, clusterUID, role string) string {
-	return fmt.Sprintf("%s:%s:%s:%s", NameVultrProviderPrefix, clusterName, clusterUID, role)
+// RoleTag returns `capvultr:role:{role}`.
+func RoleTag(role string) string {
+	return fmt.Sprintf("%s:role:%s", TagPrefix, role)
 }
 
-// NameTagFromName returns Vultr safe name tag from name.
+// NameTagFromName returns `name:{name}`.
 func NameTagFromName(name string) string {
 	return fmt.Sprintf("name:%s", name)
 }
 
-// BuildTagParams is used to build tags around an Vultr resource.
+// BuildTagParams is used to build tags around a Vultr resource.
 type BuildTagParams struct {
 	// ClusterName is the cluster associated with the resource.
 	ClusterName string
@@ -68,13 +66,18 @@ type BuildTagParams struct {
 	Role string
 }
 
-// BuildTags builds tags including the cluster tag and returns them in map form.
+// BuildTags returns the tags for a resource of the cluster.
 func BuildTags(params BuildTagParams) Tags {
-	tags := make(Tags, 0, 4)
-	tags = append(tags, ClusterNameTag(params.ClusterName))
-	tags = append(tags, ClusterNameRoleTag(params.ClusterName, params.Role))
-	tags = append(tags, ClusterNameUIDRoleTag(params.ClusterName, params.ClusterUID, params.Role))
-	tags = append(tags, NameTagFromName(params.Name))
+	return Tags{
+		ClusterTag(params.ClusterName),
+		ClusterUIDTag(params.ClusterUID),
+		RoleTag(params.Role),
+		NameTagFromName(params.Name),
+	}
+}
 
-	return tags
+// TagsOwnedByMachine reports whether tags identify the named machine of the cluster.
+func TagsOwnedByMachine(tags []string, params BuildTagParams) bool {
+	return slices.Contains(tags, NameTagFromName(params.Name)) &&
+		slices.Contains(tags, ClusterUIDTag(params.ClusterUID))
 }

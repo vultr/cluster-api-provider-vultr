@@ -61,8 +61,7 @@ func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 // FindInstanceForMachine finds the machine's instance by label and tags.
 // Returns nil, nil when there is none and an error when there is more than one.
 func (s *Service) FindInstanceForMachine(name, role string) (*govultr.Instance, error) {
-	nameTag := infrav1.NameTagFromName(name)
-	clusterTag := infrav1.ClusterNameUIDRoleTag(s.scope.Name(), s.scope.UID(), role)
+	params := s.scope.MachineTagParams(name, role)
 
 	var matches []govultr.Instance
 	options := &govultr.ListOptions{Label: name}
@@ -72,7 +71,7 @@ func (s *Service) FindInstanceForMachine(name, role string) (*govultr.Instance, 
 			return nil, errors.Wrapf(err, "failed to list instances labelled %q", name)
 		}
 		for i := range instances {
-			if instanceOwnedByMachine(&instances[i], name, nameTag, clusterTag) {
+			if instanceOwnedByMachine(&instances[i], params) {
 				matches = append(matches, instances[i])
 			}
 		}
@@ -96,15 +95,15 @@ func (s *Service) FindInstanceForMachine(name, role string) (*govultr.Instance, 
 	}
 }
 
-func instanceOwnedByMachine(instance *govultr.Instance, name, nameTag, clusterTag string) bool {
-	if instance.Label != name {
+func instanceOwnedByMachine(instance *govultr.Instance, params infrav1.BuildTagParams) bool {
+	if instance.Label != params.Name {
 		return false
 	}
-	if hasTags(instance.Tags, nameTag, clusterTag) {
+	if infrav1.TagsOwnedByMachine(instance.Tags, params) {
 		return true
 	}
 	// Tag step of the create failed; match on label and hostname.
-	return len(instance.Tags) == 0 && instance.Hostname == name
+	return len(instance.Tags) == 0 && instance.Hostname == params.Name
 }
 
 func responseCode(resp *http.Response) int {
@@ -139,7 +138,6 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 		}
 		sshKeyIDs = append(sshKeyIDs, keys.ID)
 	}
-	clusterName := s.scope.Name()
 	instanceName := scope.Name()
 
 	s.scope.V(2).Info("Preparing instance creation request payload")
@@ -159,12 +157,7 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	}
 
 	s.scope.V(2).Info("Building instance tags")
-	instanceReq.Tags = infrav1.BuildTags(infrav1.BuildTagParams{
-		ClusterName: clusterName,
-		ClusterUID:  s.scope.UID(),
-		Name:        instanceName,
-		Role:        scope.Role(),
-	})
+	instanceReq.Tags = infrav1.BuildTags(s.scope.MachineTagParams(instanceName, scope.Role()))
 	s.scope.V(2).Info("Successfully built instance tags")
 
 	// A failed create may still have made a VM; FindInstanceForMachine

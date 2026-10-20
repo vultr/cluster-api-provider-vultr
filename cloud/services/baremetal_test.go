@@ -184,7 +184,7 @@ func newTestService(t *testing.T, bm *fakeBareMetalService) (*Service, *scope.Ba
 
 func TestBuildBareMetalCreateRequest(t *testing.T) {
 	base := infrav1.VultrBareMetalMachineSpec{Region: testRegion, PlanID: testPlan, OSID: 2284}
-	tags := []string{"sigs-k8s-io:capvultr:test", testNameTag}
+	tags := []string{testVMClusterName, testNameTag}
 
 	req := buildBareMetalCreateRequest(base, testMachineName, []string{"k1"}, "dXNlcg==", tags)
 	if req.Region != testRegion || req.Plan != testPlan || req.OsID != 2284 {
@@ -235,11 +235,11 @@ func TestCreateBareMetalServer(t *testing.T) {
 		t.Errorf("empty ssh key id must be skipped: %v", req.SSHKeyIDs)
 	}
 	wantTags := map[string]bool{
-		"sigs-k8s-io:capvultr:test":            true,
-		"sigs-k8s-io:capvultr:test:node":       true,
-		"sigs-k8s-io:capvultr:test:uid-1:node": true,
-		testNameTag:                            true,
-		"team:platform":                        true,
+		testVMClusterName:            true,
+		"capvultr:cluster-uid:uid-1": true,
+		"capvultr:role:worker":       true,
+		testNameTag:                  true,
+		"team:platform":              true,
 	}
 	if len(req.Tags) != len(wantTags) {
 		t.Errorf("unexpected tags: %v", req.Tags)
@@ -289,14 +289,14 @@ func TestCreateBareMetalServerEmptyResponse(t *testing.T) {
 }
 
 func TestFindBareMetalServerByTags(t *testing.T) {
-	mine := govultr.BareMetalServer{ID: "mine", Tags: []string{testNameTag, "sigs-k8s-io:capvultr:test:uid-1:node"}}
-	otherCluster := govultr.BareMetalServer{ID: "other", Tags: []string{testNameTag, "sigs-k8s-io:capvultr:test:uid-2:node"}}
+	mine := govultr.BareMetalServer{ID: "mine", Tags: []string{testNameTag, "capvultr:cluster-uid:uid-1"}}
+	otherCluster := govultr.BareMetalServer{ID: "other", Tags: []string{testNameTag, "capvultr:cluster-uid:uid-2"}}
 	unrelated := govultr.BareMetalServer{ID: "x", Tags: []string{"name:something-else"}}
 
 	t.Run("match across pages", func(t *testing.T) {
 		bm := &fakeBareMetalService{listPages: [][]govultr.BareMetalServer{{unrelated, otherCluster}, {mine}}}
 		svc, _ := newTestService(t, bm)
-		s, err := svc.FindBareMetalServerByTags(testMachineName, "node")
+		s, err := svc.FindBareMetalServerByTags(testMachineName, infrav1.WorkerRoleTagValue)
 		if err != nil || s == nil || s.ID != "mine" {
 			t.Fatalf("got %v, %v", s, err)
 		}
@@ -304,7 +304,7 @@ func TestFindBareMetalServerByTags(t *testing.T) {
 	t.Run("no match", func(t *testing.T) {
 		bm := &fakeBareMetalService{listPages: [][]govultr.BareMetalServer{{unrelated, otherCluster}}}
 		svc, _ := newTestService(t, bm)
-		s, err := svc.FindBareMetalServerByTags(testMachineName, "node")
+		s, err := svc.FindBareMetalServerByTags(testMachineName, infrav1.WorkerRoleTagValue)
 		if err != nil || s != nil {
 			t.Fatalf("got %v, %v", s, err)
 		}
@@ -312,7 +312,7 @@ func TestFindBareMetalServerByTags(t *testing.T) {
 	t.Run("duplicates are an error", func(t *testing.T) {
 		bm := &fakeBareMetalService{listPages: [][]govultr.BareMetalServer{{mine, mine}}}
 		svc, _ := newTestService(t, bm)
-		if _, err := svc.FindBareMetalServerByTags(testMachineName, "node"); err == nil {
+		if _, err := svc.FindBareMetalServerByTags(testMachineName, infrav1.WorkerRoleTagValue); err == nil {
 			t.Fatal("expected an error for duplicate servers")
 		}
 	})

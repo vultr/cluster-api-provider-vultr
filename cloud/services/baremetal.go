@@ -60,18 +60,17 @@ func (s *Service) GetBareMetalServer(id string) (*govultr.BareMetalServer, error
 // machine of this cluster by the tags the provider applies at creation. It is
 // used to adopt a server whose id was never persisted in the providerID.
 func (s *Service) FindBareMetalServerByTags(name, role string) (*govultr.BareMetalServer, error) {
-	nameTag := infrav1.NameTagFromName(name)
-	clusterTag := infrav1.ClusterNameUIDRoleTag(s.scope.Name(), s.scope.UID(), role)
+	params := s.scope.MachineTagParams(name, role)
 
 	var matches []govultr.BareMetalServer
-	options := &govultr.ListOptions{PerPage: bareMetalListPageSize, Tag: nameTag}
+	options := &govultr.ListOptions{PerPage: bareMetalListPageSize, Tag: infrav1.NameTagFromName(name)}
 	for {
 		servers, meta, _, err := s.scope.BareMetal.List(s.ctx, options)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to list bare metal servers")
 		}
 		for i := range servers {
-			if hasTags(servers[i].Tags, nameTag, clusterTag) {
+			if infrav1.TagsOwnedByMachine(servers[i].Tags, params) {
 				matches = append(matches, servers[i])
 			}
 		}
@@ -133,12 +132,7 @@ func (s *Service) CreateBareMetalServer(ctx context.Context, machineScope *scope
 		sshKeyIDs = append(sshKeyIDs, key.ID)
 	}
 
-	tags := infrav1.BuildTags(infrav1.BuildTagParams{
-		ClusterName: s.scope.Name(),
-		ClusterUID:  s.scope.UID(),
-		Name:        machineScope.Name(),
-		Role:        machineScope.Role(),
-	})
+	tags := infrav1.BuildTags(s.scope.MachineTagParams(machineScope.Name(), machineScope.Role()))
 
 	req := buildBareMetalCreateRequest(machineScope.VultrBareMetalMachine.Spec, machineScope.Name(), sshKeyIDs, encodedUserData, tags)
 

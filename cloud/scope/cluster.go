@@ -139,6 +139,16 @@ func (s *ClusterScope) Name() string {
 	return s.Cluster.GetName()
 }
 
+// MachineTagParams returns the tag parameters for a machine of the cluster.
+func (s *ClusterScope) MachineTagParams(name, role string) infrav1.BuildTagParams {
+	return infrav1.BuildTagParams{
+		ClusterName: s.Name(),
+		ClusterUID:  s.UID(),
+		Name:        name,
+		Role:        role,
+	}
+}
+
 // SetReady sets the VultrCluster Ready Status.
 func (s *ClusterScope) SetReady() {
 	s.VultrCluster.Status.Ready = true

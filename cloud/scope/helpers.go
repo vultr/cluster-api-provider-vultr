@@ -42,9 +42,9 @@ func ResourceIDToProviderID(resourceID string) string {
 // MachineRole returns the tag role value for a Machine.
 func MachineRole(machine *clusterv1.Machine) string {
 	if util.IsControlPlaneMachine(machine) {
-		return infrav1.APIServerRoleTagValue
+		return infrav1.ControlPlaneRoleTagValue
 	}
-	return infrav1.NodeRoleTagValue
+	return infrav1.WorkerRoleTagValue
 }
 
 // GetBootstrapData reads the bootstrap data secret referenced by the Machine.

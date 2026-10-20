@@ -40,7 +40,8 @@ import (
 const (
 	testVMMachineName = "test-vm-0"
 	testVMPlan        = "vc2-2c-4gb"
-	testVMClusterTag  = "sigs-k8s-io:capvultr:test:uid-1:node"
+	testVMClusterTag  = "capvultr:cluster-uid:uid-1"
+	testVMClusterName = "capvultr:cluster:test"
 	testVMNameTag     = "name:" + testVMMachineName
 	testVMCluster     = "test"
 	testVMPending     = "pending"
@@ -214,7 +215,7 @@ func TestGetInstance(t *testing.T) {
 func TestFindInstanceForMachine(t *testing.T) {
 	tagged := govultr.Instance{ID: testVMTaggedID, Label: testVMMachineName, Hostname: testVMMachineName, Tags: []string{testVMClusterTag, testVMNameTag}}
 	untagged := govultr.Instance{ID: "untagged", Label: testVMMachineName, Hostname: testVMMachineName}
-	otherCluster := govultr.Instance{ID: "other-cluster", Label: testVMMachineName, Hostname: testVMMachineName, Tags: []string{"sigs-k8s-io:capvultr:other:uid-2:node", testVMNameTag}}
+	otherCluster := govultr.Instance{ID: "other-cluster", Label: testVMMachineName, Hostname: testVMMachineName, Tags: []string{"capvultr:cluster-uid:uid-2", testVMNameTag}}
 	otherLabel := govultr.Instance{ID: "other-label", Label: testVMMachineName + "-x", Hostname: testVMMachineName + "-x", Tags: []string{testVMClusterTag, "name:" + testVMMachineName + "-x"}}
 	handMade := govultr.Instance{ID: "hand-made", Label: testVMMachineName, Hostname: "something-else"}
 
@@ -275,8 +276,9 @@ func TestCreateInstance(t *testing.T) {
 		if req.Label != testVMMachineName || req.Hostname != testVMMachineName || req.Plan != testVMPlan || req.Region != testRegion {
 			t.Errorf("unexpected request: %+v", req)
 		}
-		if !hasTags(req.Tags, testVMNameTag, testVMClusterTag) {
-			t.Errorf("tags = %v, want %q and %q", req.Tags, testVMNameTag, testVMClusterTag)
+		wantTags := []string{testVMClusterName, testVMClusterTag, "capvultr:role:worker", testVMNameTag}
+		if len(req.Tags) != len(wantTags) || !hasTags(req.Tags, wantTags...) {
+			t.Errorf("tags = %v, want %v", req.Tags, wantTags)
 		}
 		if got == nil || got.ID != "new-instance" {
 			t.Errorf("instance = %+v", got)
