@@ -53,11 +53,11 @@ func TestBareMetalMachineScope_SetProviderID(t *testing.T) {
 
 func TestBareMetalMachineScope_Role(t *testing.T) {
 	s := newTestBareMetalScope(nil)
-	if s.IsControlPlane() || s.Role() != infrav1.NodeRoleTagValue {
+	if s.IsControlPlane() || s.Role() != infrav1.WorkerRoleTagValue {
 		t.Errorf("worker machine reported as control plane: IsControlPlane=%v Role=%q", s.IsControlPlane(), s.Role())
 	}
 	s.Machine.Labels = map[string]string{clusterv1.MachineControlPlaneLabel: ""}
-	if !s.IsControlPlane() || s.Role() != infrav1.APIServerRoleTagValue {
+	if !s.IsControlPlane() || s.Role() != infrav1.ControlPlaneRoleTagValue {
 		t.Errorf("control plane machine not detected: IsControlPlane=%v Role=%q", s.IsControlPlane(), s.Role())
 	}
 }

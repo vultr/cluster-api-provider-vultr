@@ -41,12 +41,12 @@ func TestResourceIDToProviderID(t *testing.T) {
 
 func TestMachineRole(t *testing.T) {
 	worker := &clusterv1.Machine{}
-	if got := MachineRole(worker); got != infrav1.NodeRoleTagValue {
-		t.Errorf("MachineRole(worker) = %q, want %q", got, infrav1.NodeRoleTagValue)
+	if got := MachineRole(worker); got != infrav1.WorkerRoleTagValue {
+		t.Errorf("MachineRole(worker) = %q, want %q", got, infrav1.WorkerRoleTagValue)
 	}
 
 	controlPlane := &clusterv1.Machine{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{clusterv1.MachineControlPlaneLabel: ""}}}
-	if got := MachineRole(controlPlane); got != infrav1.APIServerRoleTagValue {
-		t.Errorf("MachineRole(control plane) = %q, want %q", got, infrav1.APIServerRoleTagValue)
+	if got := MachineRole(controlPlane); got != infrav1.ControlPlaneRoleTagValue {
+		t.Errorf("MachineRole(control plane) = %q, want %q", got, infrav1.ControlPlaneRoleTagValue)
 	}
 }

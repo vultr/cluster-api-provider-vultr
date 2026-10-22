@@ -43,7 +43,7 @@ import (
 
 const (
 	orphanMachineName = "orphan-test-0"
-	orphanClusterTag  = "sigs-k8s-io:capvultr:orphan:uid-o:node"
+	orphanClusterTag  = "capvultr:cluster-uid:uid-o"
 	orphanNameTag     = "name:" + orphanMachineName
 	orphanVultrErr    = `{"error":"(REMOTE) Server failed to include a response","status":400}`
 	orphanExistingID  = "existing"
