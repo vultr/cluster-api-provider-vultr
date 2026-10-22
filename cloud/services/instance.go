@@ -33,7 +33,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// GetInstance retrieves an instance by its ID.
+// GetInstance looks up an instance by ID. It returns nil, nil when the ID is
+// empty or Vultr answers 404; any other response, including a 200 with no
+// instance, is an error.
 func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 	if instanceID == "" {
 		s.scope.Info("VultrInstance does not have an instance id")
@@ -47,13 +49,69 @@ func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
 			return nil, nil
 		}
-		if resp != nil && resp.StatusCode == http.StatusBadRequest {
-			return nil, nil
-		}
 		return nil, errors.Wrapf(err, "failed to get instance with ID %q", instanceID)
+	}
+	if instance == nil {
+		return nil, errors.Errorf("Vultr API returned HTTP %d without an instance for ID %q", responseCode(resp), instanceID)
 	}
 
 	return instance, nil
+}
+
+// FindInstanceForMachine finds the machine's instance by label and tags.
+// Returns nil, nil when there is none and an error when there is more than one.
+func (s *Service) FindInstanceForMachine(name, role string) (*govultr.Instance, error) {
+	nameTag := infrav1.NameTagFromName(name)
+	clusterTag := infrav1.ClusterNameUIDRoleTag(s.scope.Name(), s.scope.UID(), role)
+
+	var matches []govultr.Instance
+	options := &govultr.ListOptions{Label: name}
+	for {
+		instances, meta, _, err := s.scope.Instances.List(s.ctx, options)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to list instances labelled %q", name)
+		}
+		for i := range instances {
+			if instanceOwnedByMachine(&instances[i], name, nameTag, clusterTag) {
+				matches = append(matches, instances[i])
+			}
+		}
+		if meta == nil || meta.Links == nil || meta.Links.Next == "" {
+			break
+		}
+		options.Cursor = meta.Links.Next
+	}
+
+	switch len(matches) {
+	case 0:
+		return nil, nil
+	case 1:
+		return &matches[0], nil
+	default:
+		ids := make([]string, 0, len(matches))
+		for i := range matches {
+			ids = append(ids, matches[i].ID)
+		}
+		return nil, errors.Errorf("found %d instances for machine %q, expected at most one: %s", len(matches), name, strings.Join(ids, ", "))
+	}
+}
+
+func instanceOwnedByMachine(instance *govultr.Instance, name, nameTag, clusterTag string) bool {
+	if instance.Label != name {
+		return false
+	}
+	if hasTags(instance.Tags, nameTag, clusterTag) {
+		return true
+	}
+	// Tag step of the create failed; match on label and hostname.
+	return len(instance.Tags) == 0 && instance.Hostname == name
+}
+
+func responseCode(resp *http.Response) int {
+	if resp == nil {
+		return 0
+	}
+	return resp.StatusCode
 }
 
 func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, error) {
@@ -61,18 +119,17 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 
 	s.scope.V(2).Info("Retrieving bootstrap data")
 	bootstrapData, err := scope.GetBootstrapData()
+	if err != nil {
+		log.Error(err, "Error getting bootstrap data for machine")
+		return nil, errors.Wrap(err, "failed to retrieve bootstrap data")
+	}
+	s.scope.V(2).Info("Successfully retrieved bootstrap data")
 
 	commands := []string{
 		"ufw disable",
 	}
 	updatedBootstrapData := appendToUserDataCloudConfig(bootstrapData, commands)
 	encodedBootstrapData := base64.StdEncoding.EncodeToString([]byte(updatedBootstrapData))
-
-	if err != nil {
-		log.Error(err, "Error getting bootstrap data for machine")
-		return nil, errors.Wrap(err, "failed to retrieve bootstrap data")
-	}
-	s.scope.V(2).Info("Successfully retrieved bootstrap data")
 
 	var sshKeyIDs []string //nolint:prealloc
 	for _, sshKeyID := range scope.VultrMachine.Spec.SSHKey {
@@ -110,16 +167,20 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	})
 	s.scope.V(2).Info("Successfully built instance tags")
 
+	// A failed create may still have made a VM; FindInstanceForMachine
+	// picks it up on the next reconcile.
 	s.scope.V(2).Info("Creating instance with Vultr API")
-	instance, _, err := s.scope.Instances.Create(s.ctx, instanceReq)
+	instance, resp, err := s.scope.Instances.Create(s.ctx, instanceReq)
 	if err != nil {
 		log.Error(err, "Failed to create new instance")
 		return nil, errors.Wrap(err, "Failed to create new instance")
 	}
+	if instance == nil || instance.ID == "" {
+		return nil, errors.Errorf("Vultr API returned HTTP %d without an instance for the create of %q", responseCode(resp), instanceName)
+	}
 	s.scope.V(2).Info("Successfully created instance", "instance-id", instance.ID)
 
 	return instance, nil
-
 }
 
 func (s *Service) DeleteInstance(id string) error {

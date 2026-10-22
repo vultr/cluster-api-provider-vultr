@@ -12,6 +12,20 @@ const (
 	WaitingForIPReason             string = "WaitingForIP"
 )
 
+// VultrMachine Ready condition reasons.
+const (
+	InstanceWaitingForClusterInfrastructureReason string = "WaitingForClusterInfrastructure"
+	InstanceWaitingForBootstrapDataReason         string = "WaitingForBootstrapData"
+	InstancePendingReason                         string = "InstancePending"
+	InstanceActiveReason                          string = "InstanceActive"
+	InstanceCreationFailedReason                  string = "InstanceCreationFailed"
+	InstanceAddressFailedReason                   string = "FailedToGetInstanceAddress"
+	InstanceDeletingReason                        string = "Deleting"
+
+	InstanceNotFoundReason         string = "InstanceNotFound"
+	InstanceUnexpectedStatusReason string = "UnexpectedStatus"
+)
+
 // VultrBareMetalMachine condition types and reasons.
 const (
 	BareMetalMachineReadyCondition string = "Ready"

@@ -35,11 +35,17 @@ type fakeBareMetalService struct {
 	deleted  []string
 	getErr   error
 	getCode  int
+	// getEmpty and createEmpty answer 2xx with no server, as govultr does for an error body.
+	getEmpty    bool
+	createEmpty bool
 }
 
 func (f *fakeBareMetalService) Get(_ context.Context, id string) (*govultr.BareMetalServer, *http.Response, error) {
 	if f.getErr != nil {
 		return nil, &http.Response{StatusCode: f.getCode}, f.getErr
+	}
+	if f.getEmpty {
+		return nil, &http.Response{StatusCode: http.StatusOK}, nil
 	}
 	s, ok := f.servers[id]
 	if !ok {
@@ -50,6 +56,9 @@ func (f *fakeBareMetalService) Get(_ context.Context, id string) (*govultr.BareM
 
 func (f *fakeBareMetalService) Create(_ context.Context, req *govultr.BareMetalCreate) (*govultr.BareMetalServer, *http.Response, error) {
 	f.created = append(f.created, req)
+	if f.createEmpty {
+		return nil, &http.Response{StatusCode: http.StatusAccepted}, nil
+	}
 	s := &govultr.BareMetalServer{ID: "new-server", Status: "pending", Plan: req.Plan, Region: req.Region, Label: req.Label, Tags: req.Tags}
 	if f.servers == nil {
 		f.servers = map[string]*govultr.BareMetalServer{}
@@ -262,6 +271,20 @@ func TestGetBareMetalServer(t *testing.T) {
 	bm.getCode = 500
 	if _, err := svc.GetBareMetalServer("a"); err == nil {
 		t.Error("500 must be returned as an error")
+	}
+
+	bm.getErr = nil
+	bm.getEmpty = true
+	if _, err := svc.GetBareMetalServer("a"); err == nil {
+		t.Error("200 without a server must be returned as an error, not as missing")
+	}
+}
+
+func TestCreateBareMetalServerEmptyResponse(t *testing.T) {
+	bm := &fakeBareMetalService{createEmpty: true}
+	svc, ms := newTestService(t, bm)
+	if s, err := svc.CreateBareMetalServer(context.Background(), ms); err == nil || s != nil {
+		t.Fatalf("got %v, %v; want nil and an error", s, err)
 	}
 }
 
