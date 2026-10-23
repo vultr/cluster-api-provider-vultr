@@ -18,6 +18,7 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta2"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
 )
 
 // fakeBareMetalService implements the subset of govultr.BareMetalServerService the
@@ -40,17 +41,21 @@ type fakeBareMetalService struct {
 	createEmpty bool
 }
 
-func (f *fakeBareMetalService) Get(_ context.Context, id string) (*govultr.BareMetalServer, *http.Response, error) {
+func (f *fakeBareMetalService) Get(ctx context.Context, id string) (*govultr.BareMetalServer, *http.Response, error) {
 	if f.getErr != nil {
+		vultrerrors.Record(ctx, f.getCode)
 		return nil, &http.Response{StatusCode: f.getCode}, f.getErr
 	}
 	if f.getEmpty {
+		vultrerrors.Record(ctx, http.StatusOK)
 		return nil, &http.Response{StatusCode: http.StatusOK}, nil
 	}
 	s, ok := f.servers[id]
 	if !ok {
-		return nil, &http.Response{StatusCode: http.StatusNotFound}, errors.New(`{"error":"Server not found","status":404}`)
+		vultrerrors.Record(ctx, http.StatusNotFound)
+		return nil, nil, errors.New("error returned from api : bare metal not found")
 	}
+	vultrerrors.Record(ctx, http.StatusOK)
 	return s, &http.Response{StatusCode: http.StatusOK}, nil
 }
 

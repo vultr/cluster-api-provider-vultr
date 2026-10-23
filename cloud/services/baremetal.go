@@ -28,6 +28,7 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta2"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
 	"github.com/vultr/cluster-api-provider-vultr/util"
 )
 
@@ -42,9 +43,10 @@ func (s *Service) GetBareMetalServer(id string) (*govultr.BareMetalServer, error
 	}
 
 	s.scope.V(2).Info("Looking for bare metal server by ID", "server-id", id)
-	server, resp, err := s.scope.BareMetal.Get(s.ctx, id)
+	ctx, status := vultrerrors.Capture(s.ctx)
+	server, resp, err := s.scope.BareMetal.Get(ctx, id)
 	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
+		if status() == http.StatusNotFound {
 			return nil, nil
 		}
 		return nil, errors.Wrapf(err, "failed to get bare metal server with ID %q", id)
@@ -176,17 +178,22 @@ func buildBareMetalCreateRequest(spec infrav1.VultrBareMetalMachineSpec, name st
 }
 
 // DeleteBareMetalServer deletes a bare metal server.
-func (s *Service) DeleteBareMetalServer(id string) error {
+// DeleteBareMetalServer deletes the server. It returns false, nil when Vultr
+// says the server does not exist.
+func (s *Service) DeleteBareMetalServer(id string) (bool, error) {
 	if id == "" {
-		return errors.New("cannot delete bare metal server: missing server id")
+		return false, errors.New("cannot delete bare metal server: missing server id")
 	}
 
 	s.scope.V(2).Info("Deleting bare metal server", "server-id", id)
-	if err := s.scope.BareMetal.Delete(s.ctx, id); err != nil {
-		return errors.Wrapf(err, "failed to delete bare metal server with id %q", id)
+	ctx, status := vultrerrors.Capture(s.ctx)
+	if err := s.scope.BareMetal.Delete(ctx, id); err != nil {
+		if status() == http.StatusNotFound {
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to delete bare metal server with id %q", id)
 	}
-
-	return nil
+	return true, nil
 }
 
 // EnsureBareMetalVPC makes sure the VPC is attached to the server. It returns
