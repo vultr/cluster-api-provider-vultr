@@ -19,9 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -33,6 +30,7 @@ import (
 	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util"
+	conditions "sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/paused"
 	"sigs.k8s.io/cluster-api/util/predicates"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -55,8 +53,9 @@ const (
 	bareMetalPendingRequeue = 30 * time.Second
 	// bareMetalVPCRequeue is how often a requested VPC attachment is re-checked.
 	bareMetalVPCRequeue = 15 * time.Second
-	// bareMetalDeleteRequeue is how often deletion is retried while the server is still provisioning.
-	bareMetalDeleteRequeue = 30 * time.Second
+	// bareMetalNotFoundRequeue is how long to wait before looking again for a
+	// server Vultr reported missing; a single 404 is never acted on.
+	bareMetalNotFoundRequeue = 30 * time.Second
 	// bareMetalLoadBalancerRequeue is how often a not yet active load balancer is re-checked.
 	bareMetalLoadBalancerRequeue = 15 * time.Second
 )
@@ -180,8 +179,12 @@ func (r *VultrBareMetalMachineReconciler) reconcileNormal(ctx context.Context, m
 	svc := services.NewService(ctx, clusterScope)
 
 	server, err := r.findOrCreateServer(ctx, svc, machineScope)
-	if err != nil || server == nil {
+	if err != nil {
 		return reconcile.Result{}, err
+	}
+	if server == nil {
+		// Reported missing; look again rather than acting on one answer.
+		return reconcile.Result{RequeueAfter: bareMetalNotFoundRequeue}, nil
 	}
 
 	machineScope.SetProviderID(server.ID)
@@ -269,9 +272,11 @@ func (r *VultrBareMetalMachineReconciler) findOrCreateServer(ctx context.Context
 			return nil, err
 		}
 		if server == nil {
-			msg := fmt.Sprintf("bare metal server %s no longer exists", id)
-			r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeWarning, "ServerNotFound", "Failed", msg)
-			machineScope.SetTerminalFailure(v1beta2.BareMetalServerNotFoundReason, msg)
+			msg := fmt.Sprintf("bare metal server %s not found, checking again", id)
+			if !conditions.IsFalse(bareMetalMachine, v1beta2.BareMetalMachineReadyCondition) || conditions.GetReason(bareMetalMachine, v1beta2.BareMetalMachineReadyCondition) != v1beta2.BareMetalServerNotFoundReason {
+				r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeWarning, "ServerNotFound", "NotFound", msg)
+			}
+			machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.BareMetalServerNotFoundReason, msg)
 			return nil, nil
 		}
 		return server, nil
@@ -291,10 +296,7 @@ func (r *VultrBareMetalMachineReconciler) findOrCreateServer(ctx context.Context
 	if err != nil {
 		r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeWarning, "ServerCreationFailed", "Failed",
 			"Failed to create bare metal server: %v", err)
-		if isTerminalCreateError(err) {
-			machineScope.SetTerminalFailure(v1beta2.BareMetalServerCreationFailedReason, err.Error())
-			return nil, nil
-		}
+		machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.BareMetalServerCreationFailedReason, err.Error())
 		return nil, err
 	}
 	r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeNormal, "ServerCreated", "Created",
@@ -306,30 +308,6 @@ func (r *VultrBareMetalMachineReconciler) findOrCreateServer(ctx context.Context
 // vultrAPIErrorStatus extracts the HTTP status from a Vultr API error. govultr
 // surfaces API failures as errors whose text is the JSON body returned by the
 // API (for example {"error":"...","status":422}); transport errors carry no status.
-func vultrAPIErrorStatus(err error) (int, bool) {
-	if err == nil {
-		return 0, false
-	}
-	m := vultrAPIStatusRe.FindStringSubmatch(err.Error())
-	if m == nil {
-		return 0, false
-	}
-	status, convErr := strconv.Atoi(m[1])
-	if convErr != nil {
-		return 0, false
-	}
-	return status, true
-}
-
-var vultrAPIStatusRe = regexp.MustCompile(`"status"\s*:\s*(\d{3})`)
-
-// isTerminalCreateError reports whether a create failure will keep failing on
-// retry: the API rejected the request (4xx) rather than failing transiently.
-// 422 is excluded because Vultr uses it for "still activating" style responses.
-func isTerminalCreateError(err error) bool {
-	status, ok := vultrAPIErrorStatus(err)
-	return ok && status >= 400 && status < 500 && status != http.StatusUnprocessableEntity
-}
 
 func (r *VultrBareMetalMachineReconciler) reconcileDelete(ctx context.Context, machineScope *scope.BareMetalMachineScope, clusterScope *scope.ClusterScope) (reconcile.Result, error) {
 	machineScope.Info("Reconciling delete VultrBareMetalMachine")
@@ -338,40 +316,44 @@ func (r *VultrBareMetalMachineReconciler) reconcileDelete(ctx context.Context, m
 
 	svc := services.NewService(ctx, clusterScope)
 
-	var server *govultr.BareMetalServer
-	var err error
-	if id := machineScope.GetServerID(); id != "" {
-		server, err = svc.GetBareMetalServer(id)
-	} else {
-		server, err = svc.FindBareMetalServerByTags(machineScope.Name(), machineScope.Role())
+	// Delete by ID when there is one, then list the servers owned by this
+	// machine; the finalizer goes only once that list is empty.
+	id := machineScope.GetServerID()
+	deleted := false
+	if id != "" {
+		if machineScope.IsControlPlane() {
+			if err := svc.RemoveLoadBalancerMember(clusterScope.APIServerLoadBalancerID(), id); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		var err error
+		if deleted, err = svc.DeleteBareMetalServer(id); err != nil {
+			return reconcile.Result{}, err
+		}
+		if deleted {
+			r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeNormal, "ServerDeleted", "Deleted", "Deleted bare metal server %s", id)
+		}
 	}
+
+	remaining, err := svc.FindBareMetalServerByTags(machineScope.Name(), machineScope.Role())
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
-	if server == nil {
-		r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeNormal, "NoServerFound", "NotFound", "No bare metal server to delete")
-		controllerutil.RemoveFinalizer(bareMetalMachine, v1beta2.BareMetalMachineFinalizer)
-		return reconcile.Result{}, nil
-	}
-
-	if machineScope.IsControlPlane() {
-		if err := svc.RemoveLoadBalancerMember(clusterScope.APIServerLoadBalancerID(), server.ID); err != nil {
+	if remaining != nil {
+		if remaining.ID == id {
+			machineScope.Info("Server still listed after delete, checking again", "server-id", id)
+			return reconcile.Result{RequeueAfter: bareMetalNotFoundRequeue}, nil
+		}
+		if _, err := svc.DeleteBareMetalServer(remaining.ID); err != nil {
 			return reconcile.Result{}, err
 		}
+		r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeNormal, "ServerDeleted", "Deleted", "Deleted bare metal server %s", remaining.ID)
+		return reconcile.Result{RequeueAfter: bareMetalNotFoundRequeue}, nil
 	}
 
-	if err := svc.DeleteBareMetalServer(server.ID); err != nil {
-		if _, isAPIError := vultrAPIErrorStatus(err); isAPIError {
-			// Vultr refuses to delete a server that is still provisioning; retry later.
-			r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeWarning, "ServerDeleteRetry", "Retrying",
-				"Bare metal server %s could not be deleted yet: %v", server.ID, err)
-			return reconcile.Result{RequeueAfter: bareMetalDeleteRequeue}, nil
-		}
-		return reconcile.Result{}, err
+	if !deleted {
+		r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeNormal, "NoServerFound", "NotFound", "No bare metal server to delete")
 	}
-
-	r.Recorder.Eventf(bareMetalMachine, nil, corev1.EventTypeNormal, "ServerDeleted", "Deleted", "Deleted bare metal server %s", server.ID)
 	controllerutil.RemoveFinalizer(bareMetalMachine, v1beta2.BareMetalMachineFinalizer)
 	return reconcile.Result{}, nil
 }

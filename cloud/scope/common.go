@@ -1,6 +1,8 @@
 package scope
 
 import (
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
+
 	"context"
 	"os"
 
@@ -17,7 +19,9 @@ func CreateVultrClient() (*govultr.Client, error) {
 	config := &oauth2.Config{}
 	ctx := context.Background()
 	tokenSource := config.TokenSource(ctx, &oauth2.Token{AccessToken: apiKey})
-	vultrClient := govultr.NewClient(oauth2.NewClient(ctx, tokenSource))
+	httpClient := oauth2.NewClient(ctx, tokenSource)
+	httpClient.Transport = vultrerrors.Transport{Next: httpClient.Transport}
+	vultrClient := govultr.NewClient(httpClient)
 	vultrClient.SetUserAgent("vultr-cluster-api")
 
 	return vultrClient, nil

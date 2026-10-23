@@ -17,17 +17,16 @@ limitations under the License.
 package services
 
 import (
-	"context"
 	"encoding/base64"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/labstack/gommon/log"
 	"github.com/pkg/errors"
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta2"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
 	"github.com/vultr/cluster-api-provider-vultr/util"
 	"github.com/vultr/govultr/v3"
 	corev1 "k8s.io/api/core/v1"
@@ -44,9 +43,10 @@ func (s *Service) GetInstance(instanceID string) (*govultr.Instance, error) {
 
 	s.scope.Logger.V(2).Info("Looking for instance by ID", "instance-id", instanceID)
 
-	instance, resp, err := s.scope.Instances.Get(s.ctx, instanceID)
+	ctx, status := vultrerrors.Capture(s.ctx)
+	instance, resp, err := s.scope.Instances.Get(ctx, instanceID)
 	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
+		if status() == http.StatusNotFound {
 			return nil, nil
 		}
 		return nil, errors.Wrapf(err, "failed to get instance with ID %q", instanceID)
@@ -176,21 +176,22 @@ func (s *Service) CreateInstance(scope *scope.MachineScope) (*govultr.Instance, 
 	return instance, nil
 }
 
-func (s *Service) DeleteInstance(id string) error {
-	log.Info("Deleting instance resources")
-	s.scope.V(2).Info("Attempting to delete instance", "instance-id", id)
+// DeleteInstance deletes the instance. It returns false, nil when Vultr says
+// the instance does not exist.
+func (s *Service) DeleteInstance(id string) (bool, error) {
 	if id == "" {
-		s.scope.Info("Instance does not have an instance id")
-		return errors.New("cannot delete instance. instance does not have an instance id")
+		return false, errors.New("cannot delete instance. instance does not have an instance id")
 	}
 
-	// Call the Delete method directly with the string id
-	if err := s.scope.Instances.Delete(s.ctx, id); err != nil {
-		return errors.Wrapf(err, "failed to delete instance with id %q", id)
+	s.scope.V(2).Info("Deleting instance", "instance-id", id)
+	ctx, status := vultrerrors.Capture(s.ctx)
+	if err := s.scope.Instances.Delete(ctx, id); err != nil {
+		if status() == http.StatusNotFound {
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to delete instance with id %q", id)
 	}
-
-	s.scope.V(2).Info("Deleted instance", "instance-id", id)
-	return nil
+	return true, nil
 }
 
 // GetInstanceAddress converts Vultr instance IPs to corev1.NodeAddresses.
@@ -218,24 +219,6 @@ func (s *Service) GetInstanceAddress(instance *govultr.Instance) ([]corev1.NodeA
 	}
 
 	return addresses, nil
-}
-
-func (s *Service) AddInstanceToVLB(vlbID, instanceID string) error {
-	for {
-		currentVlb, _, err := s.scope.LoadBalancers.Get(context.TODO(), vlbID)
-		if err != nil {
-			return err
-		}
-
-		if currentVlb.Status != "active" {
-			time.Sleep(10 * time.Second)
-		} else {
-			updateReq := govultr.LoadBalancerReq{}
-			updateReq.Instances = append(currentVlb.Instances, instanceID)
-			err := s.scope.LoadBalancers.Update(context.TODO(), vlbID, &updateReq)
-			return err
-		}
-	}
 }
 
 func appendToUserDataCloudConfig(userData string, commands []string) string {

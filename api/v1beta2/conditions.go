@@ -16,6 +16,7 @@ const (
 const (
 	InstanceWaitingForClusterInfrastructureReason string = "WaitingForClusterInfrastructure"
 	InstanceWaitingForBootstrapDataReason         string = "WaitingForBootstrapData"
+	InstanceWaitingForLoadBalancerReason          string = "WaitingForLoadBalancer"
 	InstancePendingReason                         string = "InstancePending"
 	InstanceActiveReason                          string = "InstanceActive"
 	InstanceCreationFailedReason                  string = "InstanceCreationFailed"

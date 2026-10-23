@@ -36,7 +36,6 @@ import (
 // terminalMachineReasons are the Ready=False reasons after which the
 // controller stops reconciling a VultrMachine.
 var terminalMachineReasons = map[string]struct{}{
-	infrav1.InstanceNotFoundReason:         {},
 	infrav1.InstanceUnexpectedStatusReason: {},
 }
 

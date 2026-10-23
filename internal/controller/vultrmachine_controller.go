@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +44,15 @@ import (
 	"github.com/vultr/cluster-api-provider-vultr/cloud/services"
 	"github.com/vultr/cluster-api-provider-vultr/util/reconciler"
 	"github.com/vultr/govultr/v3"
+)
+
+const (
+	// loadBalancerRequeue is how long to wait before retrying a load balancer
+	// that is not accepting members yet.
+	loadBalancerRequeue = 15 * time.Second
+	// notFoundRequeue is how long to wait before looking again for an
+	// instance Vultr reported missing; a single 404 is never acted on.
+	notFoundRequeue = 30 * time.Second
 )
 
 // VultrMachineReconciler reconciles a VultrMachine object
@@ -188,8 +196,8 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 		return reconcile.Result{}, err
 	}
 	if instance == nil {
-		// Terminal failure recorded.
-		return reconcile.Result{}, nil
+		// Reported missing; look again rather than acting on one answer.
+		return reconcile.Result{RequeueAfter: notFoundRequeue}, nil
 	}
 
 	// Persist the ID first so a later error cannot orphan the instance.
@@ -207,17 +215,26 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 	machineScope.SetStorage(instance.Disk)
 	r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "SetInstanceStatus", "Set", "Setting instance status %s", instance.Label)
 
-	// Add control-plane nodes to VLB
+	// Control-plane instances join the API server load balancer; requeue
+	// until it accepts the member.
 	if util.IsControlPlaneMachine(machineScope.Machine) {
-		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "AddInstanceToVLB", "Adding",
-			"Instance %s is a control plane node, adding to VLB", instance.ID)
-		if err := instanceSvc.AddInstanceToVLB(clusterScope.APIServerLoadbalancersRef().ResourceID, instance.ID); err != nil {
-			r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "AddInstanceToVLBFailed", "AddFailed",
-				"Failed to add instance %s to VLB: %v", instance.ID, err)
-			return reconcile.Result{}, errors.Wrap(err, "failed to add instance to VLB")
+		lbID := clusterScope.APIServerLoadbalancersRef().ResourceID
+		if lbID == "" {
+			machineScope.Info("Waiting for the load balancer to be created")
+			machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceWaitingForLoadBalancerReason, "Waiting for the load balancer to be created")
+			return reconcile.Result{RequeueAfter: loadBalancerRequeue}, nil
 		}
-		r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeNormal, "AddInstanceToVLBSuccess", "Added",
-			"Successfully added instance %s to VLB", instance.ID)
+		member, err := instanceSvc.EnsureLoadBalancerMember(lbID, instance.ID)
+		if err != nil {
+			r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "LoadBalancerMemberFailed", "Failed",
+				"Failed to add instance %s to load balancer %s: %v", instance.ID, lbID, err)
+			return reconcile.Result{}, err
+		}
+		if !member {
+			machineScope.Info("Waiting for the load balancer to become active", "load-balancer-id", lbID)
+			machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceWaitingForLoadBalancerReason, "Waiting for the load balancer to become active")
+			return reconcile.Result{RequeueAfter: loadBalancerRequeue}, nil
+		}
 	}
 
 	// Retrieve instance addresses
@@ -258,8 +275,9 @@ func (r *VultrMachineReconciler) reconcileNormal(ctx context.Context, machineSco
 
 // findOrCreateInstance finds the instance by providerID, then by label and
 // tags, and creates it only when the machine has no providerID. A machine whose
-// known instance is gone is failed, never re-created. Returns nil, nil after
-// recording a terminal failure.
+// known instance is reported missing is never re-created: it is marked
+// InstanceNotFound and checked again, and MachineHealthCheck decides when to
+// replace it. Returns nil, nil in that case.
 func (r *VultrMachineReconciler) findOrCreateInstance(instanceSvc *services.Service, machineScope *scope.MachineScope) (*govultr.Instance, error) {
 	vultrMachine := machineScope.VultrMachine
 
@@ -269,9 +287,11 @@ func (r *VultrMachineReconciler) findOrCreateInstance(instanceSvc *services.Serv
 			return nil, err
 		}
 		if instance == nil {
-			msg := fmt.Sprintf("instance %s no longer exists", id)
-			r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "InstanceNotFound", "Failed", msg)
-			machineScope.SetTerminalFailure(v1beta2.InstanceNotFoundReason, msg)
+			msg := fmt.Sprintf("instance %s not found, checking again", id)
+			if !conditions.IsFalse(vultrMachine, v1beta2.MachineReadyCondition) || conditions.GetReason(vultrMachine, v1beta2.MachineReadyCondition) != v1beta2.InstanceNotFoundReason {
+				r.Recorder.Eventf(vultrMachine, nil, corev1.EventTypeWarning, "InstanceNotFound", "NotFound", msg)
+			}
+			machineScope.SetReadyCondition(metav1.ConditionFalse, v1beta2.InstanceNotFoundReason, msg)
 			return nil, nil
 		}
 		return instance, nil
@@ -308,39 +328,49 @@ func (r *VultrMachineReconciler) reconcileDelete(ctx context.Context, machineSco
 
 	instanceSvc := services.NewService(ctx, clusterScope)
 
-	// Find by ID, or by label and tags when no ID was persisted. The finalizer
-	// goes only once Vultr confirms there is nothing left to delete.
-	var (
-		instance *govultr.Instance
-		err      error
-	)
-	if id := machineScope.GetInstanceID(); id != "" {
-		instance, err = instanceSvc.GetInstance(id)
-	} else {
-		instance, err = instanceSvc.FindInstanceForMachine(machineScope.Name(), machineScope.Role())
-	}
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if instance == nil {
-		r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "NoInstanceFound", "NotFound", "No instance to delete")
-		controllerutil.RemoveFinalizer(vultrmachine, v1beta2.MachineFinalizer)
-		return reconcile.Result{}, nil
-	}
-
-	if err := instanceSvc.DeleteInstance(instance.ID); err != nil {
-		if status, ok := vultrAPIErrorStatus(err); !ok || status != http.StatusNotFound {
+	// Delete by ID when there is one, then list the instances owned by this
+	// machine; the finalizer goes only once that list is empty.
+	id := machineScope.GetInstanceID()
+	deleted := false
+	if id != "" {
+		var err error
+		if deleted, err = instanceSvc.DeleteInstance(id); err != nil {
 			r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeWarning, "InstanceDeleteFailed", "DeleteFailed",
-				"Failed to delete instance %s: %v", instance.ID, err)
+				"Failed to delete instance %s: %v", id, err)
 			return reconcile.Result{}, err
+		}
+		if deleted {
+			r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "InstanceDeleted", "Deleted", "Deleted instance %s", id)
 		}
 	}
 
-	r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "InstanceDeleted", "Deleted", "Deleted instance %s", instance.ID)
+	remaining, err := instanceSvc.FindInstanceForMachine(machineScope.Name(), machineScope.Role())
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if remaining != nil {
+		if remaining.ID == id {
+			if deleted {
+				// The list has not caught up with the delete yet.
+				return reconcile.Result{RequeueAfter: notFoundRequeue}, nil
+			}
+			machineScope.Info("Vultr reported the instance missing but still lists it, checking again", "instance-id", id)
+			return reconcile.Result{RequeueAfter: notFoundRequeue}, nil
+		}
+		if _, err := instanceSvc.DeleteInstance(remaining.ID); err != nil {
+			return reconcile.Result{}, err
+		}
+		r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "InstanceDeleted", "Deleted", "Deleted instance %s", remaining.ID)
+		return reconcile.Result{RequeueAfter: notFoundRequeue}, nil
+	}
+
+	if !deleted {
+		r.Recorder.Eventf(vultrmachine, nil, corev1.EventTypeNormal, "NoInstanceFound", "NotFound", "No instance to delete")
+	}
 	controllerutil.RemoveFinalizer(vultrmachine, v1beta2.MachineFinalizer)
 	return reconcile.Result{}, nil
 }
+
 func (r *VultrMachineReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager, _ controller.Options) error {
 	clusterToObjectFunc, err := util.ClusterToTypedObjectsMapper(r.Client, &v1beta2.VultrMachineList{}, mgr.GetScheme())
 	if err != nil {

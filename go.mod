@@ -8,7 +8,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.32.2
 	github.com/onsi/gomega v1.43.0
 	github.com/pkg/errors v0.9.1
-	github.com/vultr/govultr/v3 v3.33.0
+	github.com/vultr/govultr/v3 v3.33.2
 	golang.org/x/oauth2 v0.36.0
 	k8s.io/api v0.35.8
 	k8s.io/apimachinery v0.35.8

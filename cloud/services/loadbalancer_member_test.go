@@ -7,25 +7,36 @@ import (
 	"testing"
 
 	"github.com/vultr/govultr/v3"
+
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
 )
 
 type fakeLBService struct {
 	govultr.LoadBalancerService
 
-	lb      *govultr.LoadBalancer
-	getCode int
-	updates []*govultr.LoadBalancerReq
+	lb         *govultr.LoadBalancer
+	getCode    int
+	updates    []*govultr.LoadBalancerReq
+	updateErr  error
+	updateCode int
 }
 
-func (f *fakeLBService) Get(_ context.Context, _ string) (*govultr.LoadBalancer, *http.Response, error) {
+func (f *fakeLBService) Get(ctx context.Context, _ string) (*govultr.LoadBalancer, *http.Response, error) {
 	if f.lb == nil {
-		return nil, &http.Response{StatusCode: f.getCode}, errors.New(`{"error":"not found","status":404}`)
+		vultrerrors.Record(ctx, f.getCode)
+		return nil, nil, errors.New("error returned from api : Load Balancer Subscription ID Not Found")
 	}
+	vultrerrors.Record(ctx, http.StatusOK)
 	return f.lb, &http.Response{StatusCode: http.StatusOK}, nil
 }
 
-func (f *fakeLBService) Update(_ context.Context, _ string, req *govultr.LoadBalancerReq) error {
+func (f *fakeLBService) Update(ctx context.Context, _ string, req *govultr.LoadBalancerReq) error {
 	f.updates = append(f.updates, req)
+	if f.updateErr != nil {
+		vultrerrors.Record(ctx, f.updateCode)
+		return f.updateErr
+	}
+	vultrerrors.Record(ctx, http.StatusNoContent)
 	f.lb.Instances = req.Instances
 	return nil
 }
@@ -65,6 +76,19 @@ func TestEnsureLoadBalancerMember(t *testing.T) {
 			t.Fatal("expected error")
 		}
 	})
+}
+
+func TestEnsureLoadBalancerMemberStillActivating(t *testing.T) {
+	lb := &fakeLBService{lb: &govultr.LoadBalancer{Status: "active"}, updateErr: errors.New("error returned from api : Load Balancer Nodes Still Activating..."), updateCode: 422}
+	svc := newLBTestService(t, lb)
+	member, err := svc.EnsureLoadBalancerMember("lb", "i")
+	if err != nil || member {
+		t.Fatalf("got member=%v err=%v; want false, nil so the caller requeues", member, err)
+	}
+	lb.updateErr, lb.updateCode = errors.New("error returned from api : Internal server error."), 500
+	if _, err := svc.EnsureLoadBalancerMember("lb", "i"); err == nil {
+		t.Fatal("500 must be returned as an error")
+	}
 }
 
 func TestRemoveLoadBalancerMember(t *testing.T) {

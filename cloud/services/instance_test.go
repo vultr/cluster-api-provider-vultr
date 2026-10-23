@@ -35,6 +35,7 @@ import (
 
 	infrav1 "github.com/vultr/cluster-api-provider-vultr/api/v1beta2"
 	"github.com/vultr/cluster-api-provider-vultr/cloud/scope"
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
 )
 
 const (
@@ -73,17 +74,21 @@ type fakeInstanceService struct {
 	listCalls   int
 }
 
-func (f *fakeInstanceService) Get(_ context.Context, id string) (*govultr.Instance, *http.Response, error) {
+func (f *fakeInstanceService) Get(ctx context.Context, id string) (*govultr.Instance, *http.Response, error) {
 	if f.getErr != nil {
+		vultrerrors.Record(ctx, f.getCode)
 		return nil, &http.Response{StatusCode: f.getCode}, f.getErr
 	}
 	if f.getEmpty {
+		vultrerrors.Record(ctx, http.StatusOK)
 		return nil, &http.Response{StatusCode: http.StatusOK}, nil
 	}
 	i, ok := f.instances[id]
 	if !ok {
-		return nil, &http.Response{StatusCode: http.StatusNotFound}, errors.New(`{"error":"Invalid instance.","status":404}`)
+		vultrerrors.Record(ctx, http.StatusNotFound)
+		return nil, nil, errors.New("error returned from api : instance not found")
 	}
+	vultrerrors.Record(ctx, http.StatusOK)
 	return i, &http.Response{StatusCode: http.StatusOK}, nil
 }
 

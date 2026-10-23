@@ -17,6 +17,8 @@ limitations under the License.
 package services
 
 import (
+	"github.com/vultr/cluster-api-provider-vultr/cloud/vultrerrors"
+
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -97,9 +99,9 @@ func (s *Service) DeleteLoadBalancer(id string) error {
 
 // EnsureLoadBalancerMember makes sure the resource (instance or bare metal
 // server id) is a backend of the load balancer. It returns ready=false while
-// the load balancer is still activating so the caller can requeue instead of
-// blocking, and it is idempotent: a resource that is already a member is not
-// appended again.
+// the load balancer is not accepting members yet so the caller can requeue,
+// and it is idempotent: a resource that is already a member is not appended
+// again.
 func (s *Service) EnsureLoadBalancerMember(lbID, resourceID string) (bool, error) {
 	if lbID == "" {
 		return false, errors.New("load balancer id is empty")
@@ -119,7 +121,12 @@ func (s *Service) EnsureLoadBalancerMember(lbID, resourceID string) (bool, error
 	}
 
 	req := &govultr.LoadBalancerReq{Instances: append(append([]string{}, lb.Instances...), resourceID)}
-	if err := s.scope.LoadBalancers.Update(s.ctx, lbID, req); err != nil {
+	ctx, status := vultrerrors.Capture(s.ctx)
+	if err := s.scope.LoadBalancers.Update(ctx, lbID, req); err != nil {
+		// 422 means the load balancer is not accepting members yet.
+		if status() == http.StatusUnprocessableEntity {
+			return false, nil
+		}
 		return false, errors.Wrapf(err, "failed to add %q to load balancer %q", resourceID, lbID)
 	}
 	return true, nil
@@ -132,9 +139,10 @@ func (s *Service) RemoveLoadBalancerMember(lbID, resourceID string) error {
 		return nil
 	}
 
-	lb, resp, err := s.scope.LoadBalancers.Get(s.ctx, lbID)
+	ctx, status := vultrerrors.Capture(s.ctx)
+	lb, _, err := s.scope.LoadBalancers.Get(ctx, lbID)
 	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
+		if status() == http.StatusNotFound {
 			return nil
 		}
 		return errors.Wrapf(err, "failed to get load balancer %q", lbID)
