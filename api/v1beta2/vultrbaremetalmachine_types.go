@@ -195,5 +195,5 @@ type VultrBareMetalMachineList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&VultrBareMetalMachine{}, &VultrBareMetalMachineList{})
+	objectTypes = append(objectTypes, &VultrBareMetalMachine{}, &VultrBareMetalMachineList{})
 }

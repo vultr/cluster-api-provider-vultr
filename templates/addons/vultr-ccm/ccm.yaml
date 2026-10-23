@@ -161,7 +161,7 @@ data:
                         operator: Exists
           hostNetwork: true
           containers:
-            - image: vultr/vultr-cloud-controller-manager:v0.18.3
+            - image: vultr/vultr-cloud-controller-manager:v0.18.4
               imagePullPolicy: Always
               name: vultr-cloud-controller-manager
               command:

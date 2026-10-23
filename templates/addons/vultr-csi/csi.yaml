@@ -27,22 +27,20 @@ data:
       attachRequired: true
       podInfoOnMount: true
     ---
-    apiVersion: storage.k8s.io/v1
     kind: StorageClass
+    apiVersion: storage.k8s.io/v1
     metadata:
       name: vultr-block-storage
-      namespace: kube-system
     provisioner: block.csi.vultr.com
     allowVolumeExpansion: true
     parameters:
       storage_type: "block"
       disk_type: "nvme"
     ---
-    apiVersion: storage.k8s.io/v1
     kind: StorageClass
+    apiVersion: storage.k8s.io/v1
     metadata:
       name: vultr-block-storage-retain
-      namespace: kube-system
     provisioner: block.csi.vultr.com
     allowVolumeExpansion: true
     reclaimPolicy: Retain
@@ -50,22 +48,20 @@ data:
       storage_type: "block"
       disk_type: "nvme"
     ---
-    apiVersion: storage.k8s.io/v1
     kind: StorageClass
+    apiVersion: storage.k8s.io/v1
     metadata:
       name: vultr-block-storage-hdd
-      namespace: kube-system
     provisioner: block.csi.vultr.com
     allowVolumeExpansion: true
     parameters:
       storage_type: "block"
       disk_type: "hdd"
     ---
-    apiVersion: storage.k8s.io/v1
     kind: StorageClass
+    apiVersion: storage.k8s.io/v1
     metadata:
       name: vultr-block-storage-hdd-retain
-      namespace: kube-system
     provisioner: block.csi.vultr.com
     allowVolumeExpansion: true
     reclaimPolicy: Retain
@@ -73,22 +69,20 @@ data:
       storage_type: "block"
       disk_type: "hdd"
     ---
-    apiVersion: storage.k8s.io/v1
     kind: StorageClass
+    apiVersion: storage.k8s.io/v1
     metadata:
       name: vultr-vfs-storage
-      namespace: kube-system
     provisioner: block.csi.vultr.com
     allowVolumeExpansion: true
     parameters:
       storage_type: "vfs"
       disk_type: "nvme"
     ---
-    apiVersion: storage.k8s.io/v1
     kind: StorageClass
+    apiVersion: storage.k8s.io/v1
     metadata:
       name: vultr-vfs-storage-retain
-      namespace: kube-system
     provisioner: block.csi.vultr.com
     allowVolumeExpansion: true
     reclaimPolicy: Retain
@@ -103,7 +97,7 @@ data:
       namespace: kube-system
     spec:
       serviceName: "csi-vultr"
-      replicas: 1
+      replicas: 2
       selector:
         matchLabels:
           app: csi-vultr-controller
@@ -114,13 +108,21 @@ data:
             role: csi-vultr
         spec:
           serviceAccountName: csi-vultr-controller-sa
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app: csi-vultr-controller
+                  topologyKey: kubernetes.io/hostname
           containers:
             - name: csi-provisioner
-              image: k8s.gcr.io/sig-storage/csi-provisioner:v3.4.0
+              image: registry.k8s.io/sig-storage/csi-provisioner:v3.4.0
               args:
                 - "--volume-name-prefix=pvc"
                 - "--volume-name-uuid-length=16"
                 - "--csi-address=$(ADDRESS)"
+                - "--leader-election=true"
                 - "--timeout=90s"
                 - "--v=5"
                 - "--default-fstype=ext4"
@@ -132,10 +134,11 @@ data:
                 - name: socket-dir
                   mountPath: /var/lib/csi/sockets/pluginproxy/
             - name: csi-attacher
-              image: k8s.gcr.io/sig-storage/csi-attacher:v4.1.0
+              image: registry.k8s.io/sig-storage/csi-attacher:v4.1.0
               args:
                 - "--v=5"
                 - "--csi-address=$(ADDRESS)"
+                - "--leader-election=true"
               env:
                 - name: ADDRESS
                   value: /var/lib/csi/sockets/pluginproxy/csi.sock
@@ -147,6 +150,7 @@ data:
               image: registry.k8s.io/sig-storage/csi-resizer:v1.7.0
               args:
                 - "--csi-address=$(ADDRESS)"
+                - "--leader-election=true"
                 - "--timeout=30s"
                 - "--v=5"
                 - "--handle-volume-inuse-error=false"
@@ -158,7 +162,7 @@ data:
                 - name: socket-dir
                   mountPath: /var/lib/csi/sockets/pluginproxy/
             - name: csi-vultr-plugin
-              image: vultr/vultr-csi:v0.18.0
+              image: vultr/vultr-csi:v0.19.1
               args:
                 - "--endpoint=$(CSI_ENDPOINT)"
                 - "--token=$(VULTR_API_KEY)"
@@ -178,6 +182,17 @@ data:
             - name: socket-dir
               emptyDir: { }
     ---
+    apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      name: csi-vultr-controller
+      namespace: kube-system
+    spec:
+      minAvailable: 1
+      selector:
+        matchLabels:
+          app: csi-vultr-controller
+    ---
     apiVersion: v1
     kind: ServiceAccount
     metadata:
@@ -188,7 +203,6 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
       name: csi-vultr-attacher-role
-      namespace: kube-system
     rules:
       - apiGroups: [ "" ]
         resources: [ "persistentvolumes" ]
@@ -210,7 +224,6 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
       name: csi-controller-attacher-binding
-      namespace: kube-system
     subjects:
       - kind: ServiceAccount
         name: csi-vultr-controller-sa
@@ -224,7 +237,6 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
       name: csi-vultr-provisioner-role
-      namespace: kube-system
     rules:
       - apiGroups: [ "" ]
         resources: [ "secrets" ]
@@ -255,7 +267,6 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
       name: csi-controller-provisioner-binding
-      namespace: kube-system
     subjects:
       - kind: ServiceAccount
         name: csi-vultr-controller-sa
@@ -265,45 +276,29 @@ data:
       name: csi-vultr-provisioner-role
       apiGroup: rbac.authorization.k8s.io
     ---
-    kind: ClusterRole
+    kind: Role
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
-      name: csi-vultr-node-driver-registrar-role
+      name: csi-vultr-snapshotter-leaderelection
       namespace: kube-system
     rules:
-      - apiGroups: [ "" ]
-        resources: [ "events" ]
-        verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+      - apiGroups: [ "coordination.k8s.io" ]
+        resources: [ "leases" ]
+        verbs: [ "get", "watch", "list", "delete", "update", "create" ]
     ---
-    kind: ClusterRole
+    kind: RoleBinding
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
-      name: csi-vultr-resizer-role
-    rules:
-      - apiGroups: [""]
-        resources: ["persistentvolumes"]
-        verbs: ["get", "list", "watch", "update", "patch"]
-      - apiGroups: [""]
-        resources: ["persistentvolumeclaims"]
-        verbs: ["get", "list", "watch"]
-      - apiGroups: [""]
-        resources: ["persistentvolumeclaims/status"]
-        verbs: ["update", "patch"]
-      - apiGroups: [""]
-        resources: ["events"]
-        verbs: ["list", "watch", "create", "update", "patch"]
-    ---
-    kind: ClusterRoleBinding
-    apiVersion: rbac.authorization.k8s.io/v1
-    metadata:
-      name: csi-vultr-resizer-binding
+      name: csi-vultr-snapshotter-leaderelection
+      namespace: kube-system
     subjects:
       - kind: ServiceAccount
         name: csi-vultr-controller-sa
         namespace: kube-system
     roleRef:
-      kind: ClusterRole
-      name: csi-vultr-resizer-role
+      kind: Role
+      name: csi-vultr-snapshotter-leaderelection
+      apiGroup: rbac.authorization.k8s.io
     ---
     kind: DaemonSet
     apiVersion: apps/v1
@@ -344,7 +339,7 @@ data:
                 - name: registration-dir
                   mountPath: /registration/
             - name: csi-vultr-plugin
-              image: vultr/vultr-csi:v0.18.0
+              image: vultr/vultr-csi:v0.19.1
               args:
                 - "--endpoint=$(CSI_ENDPOINT)"
               env:
@@ -411,7 +406,6 @@ data:
     apiVersion: rbac.authorization.k8s.io/v1
     metadata:
       name: driver-registrar-binding
-      namespace: kube-system
     subjects:
       - kind: ServiceAccount
         name: csi-vultr-node-sa
@@ -420,6 +414,46 @@ data:
       kind: ClusterRole
       name: csi-vultr-node-driver-registrar-role
       apiGroup: rbac.authorization.k8s.io
+    ---
+    kind: ClusterRole
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: csi-vultr-node-driver-registrar-role
+    rules:
+      - apiGroups: [ "" ]
+        resources: [ "events" ]
+        verbs: [ "get", "list", "watch", "create", "update", "patch" ]
+    ---
+    kind: ClusterRole
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: csi-vultr-resizer-role
+    rules:
+      - apiGroups: [""]
+        resources: ["persistentvolumes"]
+        verbs: ["get", "list", "watch", "update", "patch"]
+      - apiGroups: [""]
+        resources: ["persistentvolumeclaims"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: [""]
+        resources: ["persistentvolumeclaims/status"]
+        verbs: ["update", "patch"]
+      - apiGroups: [""]
+        resources: ["events"]
+        verbs: ["list", "watch", "create", "update", "patch"]
+    ---
+    kind: ClusterRoleBinding
+    apiVersion: rbac.authorization.k8s.io/v1
+    metadata:
+      name: csi-vultr-resizer-binding
+    subjects:
+      - kind: ServiceAccount
+        name: csi-vultr-controller-sa
+        namespace: kube-system
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: csi-vultr-resizer-role
 ---
 apiVersion: v1
 kind: Secret

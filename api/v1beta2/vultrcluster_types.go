@@ -110,5 +110,5 @@ type VultrClusterList struct {
 }
 
 func init() {
-	SchemeBuilder.Register(&VultrCluster{}, &VultrClusterList{})
+	objectTypes = append(objectTypes, &VultrCluster{}, &VultrClusterList{})
 }
