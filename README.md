@@ -22,10 +22,11 @@ Check out the [Cluster API Quick Start](docs/getting-started.md) to create your 
 
 This provider's versions are compatible with the following versions of Cluster API:
 
-| CAPVULTR Version | API Version | CAPI v1.10 | CAPI v1.11 | CAPI v1.12 | CAPI v1.13 |
-|------------------|:------------:|:----------:|:----------:|:----------:|:----------:|
-| v0.4.0           | v1beta1      |      ✓     |            |            |            |
-| v0.5.0           | v1beta2      |            |      ✓     |      ✓     |      ✓     |
+| CAPVULTR Version | API Version | CAPI v1.10 | CAPI v1.11 | CAPI v1.12 | CAPI v1.13 | CAPI v1.14 |
+|------------------|:------------:|:----------:|:----------:|:----------:|:----------:|:----------:|
+| v0.4.0           | v1beta1      |      ✓     |            |            |            |            |
+| v0.5.0           | v1beta2      |            |      ✓     |      ✓     |      ✓     |            |
+| v0.6.0           | v1beta2      |            |            |            |            |      ✓     |
 
 ## Kubernetes versions with published Images
 

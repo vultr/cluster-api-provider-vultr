@@ -1,4 +1,21 @@
 # Changelog
+## [v0.6.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.5.0...v0.6.0) (2026-10-23)
+### Enhancements
+* Add bare metal support for control plane and worker nodes [PR 165](https://github.com/vultr/cluster-api-provider-vultr/pull/165)
+* Add machine health checks to all templates [PR 171](https://github.com/vultr/cluster-api-provider-vultr/pull/171)
+* Make instance tags filterable: `capvultr:cluster`, `capvultr:cluster-uid`, `capvultr:role` and `name` [PR 168](https://github.com/vultr/cluster-api-provider-vultr/pull/168)
+* Wait for the load balancer before adding control plane nodes instead of failing on every attempt [PR 169](https://github.com/vultr/cluster-api-provider-vultr/pull/169)
+
+### Bug Fixes
+* Fix duplicate and orphaned instances [PR 167](https://github.com/vultr/cluster-api-provider-vultr/pull/167)
+* Retry transient Vultr API errors instead of failing [PR 169](https://github.com/vultr/cluster-api-provider-vultr/pull/169)
+
+### Dependencies
+* Go 1.25 → 1.26; cluster-api v1.13.6 → v1.14.3; controller-runtime v0.23.3 → v0.24.1; k8s.io/* v0.35.8 → v0.36.3 [PR 170](https://github.com/vultr/cluster-api-provider-vultr/pull/170)
+* Update govultr from v3.33.0 to v3.33.2 [PR 169](https://github.com/vultr/cluster-api-provider-vultr/pull/169)
+* Templates: vultr-cloud-controller-manager v0.18.3 → v0.18.4, vultr-csi v0.18.0 → v0.19.1, Cilium chart 1.17.0 → 1.20.3 [PR 170](https://github.com/vultr/cluster-api-provider-vultr/pull/170)
+* Update kustomize to v5.8.3, golangci-lint to v2.15.0, controller-gen to v0.23.0, kubectl to v1.36.5; test against Kubernetes 1.36.2 [PR 170](https://github.com/vultr/cluster-api-provider-vultr/pull/170)
+
 ## [v0.5.0](https://github.com/vultr/cluster-api-provider-vultr/compare/v0.4.0...v0.5.0) (2026-09-11)
 ### Breaking Changes
 * Migrate the API to `v1beta2` (Cluster API `v1beta2` contract). The `v1beta1` API is removed and there is no conversion webhook, so existing `v1beta1` `VultrCluster`/`VultrMachine` objects are not upgraded in place — recreate clusters or migrate manually. Requires Cluster API v1.11 or newer. [PR 143](https://github.com/vultr/cluster-api-provider-vultr/pull/143)
