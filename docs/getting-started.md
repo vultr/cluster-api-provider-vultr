@@ -61,20 +61,26 @@ Verify that the image is available in your account and remember the correspondin
 
 ## Initialize the management cluster
 
+Most templates are ClusterClass based and ship Cilium through the Cluster API Helm addon
+provider, so enable the topology feature gate and install the addon provider along with
+CAPVULTR:
+
 ```bash
-# Initialize a management cluster 
-clusterctl init 
+export CLUSTER_TOPOLOGY=true
+clusterctl init --infrastructure vultr --addon helm
 ```
 
 The output will be similar to this:
 
 ```bash
 Fetching providers
-Installing cert-manager Version="v1.15.1"
+Installing cert-manager Version="v1.19.1"
 Waiting for cert-manager to be available...
-Installing Provider="cluster-api" Version="v1.7.4" TargetNamespace="capi-system"
-Installing Provider="bootstrap-kubeadm" Version="v1.7.4" TargetNamespace="capi-kubeadm-bootstrap-system"
-Installing Provider="control-plane-kubeadm" Version="v1.7.4" TargetNamespace="capi-kubeadm-control-plane-system"
+Installing Provider="cluster-api" Version="v1.13.6" TargetNamespace="capi-system"
+Installing Provider="bootstrap-kubeadm" Version="v1.13.6" TargetNamespace="capi-kubeadm-bootstrap-system"
+Installing Provider="control-plane-kubeadm" Version="v1.13.6" TargetNamespace="capi-kubeadm-control-plane-system"
+Installing Provider="infrastructure-vultr" Version="v0.6.0" TargetNamespace="capvultr-system"
+Installing Provider="addon-helm" Version="v0.6.4" TargetNamespace="caaph-system"
 
 Your management cluster has been initialized successfully!
 
@@ -84,55 +90,106 @@ You can now create your first workload cluster by running the following:
 
 ```
 
+CAPVULTR needs your Vultr API key in the management cluster. `clusterctl` reads it from the
+environment or from `~/.config/cluster-api/clusterctl.yaml`, so export it before `clusterctl init`:
+
+```bash
+export VULTR_API_KEY=<your api key>
+```
+
+## Cluster templates
+
+`clusterctl generate cluster --flavor <flavor>` picks a template. All of them except
+`cluster-template.yaml` and `bare-metal-standalone` are ClusterClass based, so the management
+cluster needs the topology feature gate from the previous step.
+
+| Flavor | Contents |
+|---|---|
+| *(none)* | plain template: cloud compute control plane and workers, no ClusterClass, no addons |
+| `clusterclass-kubeadm` | the same cluster as a ClusterClass topology |
+| `cilium` | adds Cilium through the Helm addon provider |
+| `vultr-ccm` | adds the Vultr cloud controller manager |
+| `vultr-csi` | adds the Vultr CSI driver |
+| `full` | Cilium, CCM and CSI together |
+| `bare-metal` | cloud compute control plane, bare metal workers, Cilium and CCM |
+| `bare-metal-cp` | the same with the control plane on bare metal as well |
+| `bare-metal-standalone` | bare metal workers without ClusterClass |
+
+Bare metal has its own guide: [docs/bare-metal.md](bare-metal.md).
+
+The ClusterClass itself is published separately, as `clusterclass-vultr.yaml`,
+`clusterclass-vultr-bare-metal.yaml` and `clusterclass-vultr-bare-metal-cp.yaml`. `clusterctl`
+adds the right one to the generated output when it is not installed on the management cluster
+yet, so you do not normally apply it by hand.
+
+Working from a source checkout rather than a release, build the artifacts and apply the class
+yourself, because `clusterctl --from` reads a file and never fetches a missing class:
+
+```bash
+make generate-release
+clusterctl generate cluster ${CLUSTER_NAME} --from out/clusterclass-vultr.yaml | kubectl apply -f -
+clusterctl generate cluster ${CLUSTER_NAME} --from out/cluster-template-full.yaml | kubectl apply -f -
+```
+
 ## Creating a workload cluster
 
- **Set controller image**  
-   Edit `../default/manager_image_patch.yaml` and set `image` to your controller URL.
-
- **Add API key**  
-   Edit `../default/credentials.yaml` and add your `VULTR_API_KEY`.
-
-Setting up environment variables: Config example can be found in scripts/capvultr-config-example
+Set the variables the template needs. `scripts/capvultr-config-example` lists all of them with
+placeholders; copy it, fill it in and source it.
 
 ```bash
  export CLUSTER_NAME=<clustername>
- export KUBERNETES_VERSION=v1.32.4
+ export KUBERNETES_VERSION=v1.34.3
  export CONTROL_PLANE_MACHINE_COUNT=1
  export CONTROL_PLANE_PLAN_ID=<plan_id>
  export WORKER_MACHINE_COUNT=1
  export WORKER_PLAN_ID=<plan_id>
  export MACHINE_IMAGE=<snapshot_id> # created in the step above.
  export REGION=<region>
- export VPC_ID=<vpc_id>
  export SSH_KEY_ID=<sshKey_id>
+ export VPC_ID=""   # leave empty for public IPs only; set to put every node in the VPC
 ```
 
 ```
-source scripts/capvultr-config-example
+cp scripts/capvultr-config-example my-cluster.env
+# fill in the placeholders, then
+source my-cluster.env
 ```
+
+The plan variables have no default, so `clusterctl` stops and names them if any is unset.
 
 Create the workload cluster on the management cluster:
 
----
-clusterctl to generate the cluster definition
 ```
-clusterctl generate cluster capvultr-quickstart --from templates/cluster-template.yaml > cluster.yaml
+clusterctl generate cluster capvultr-quickstart --flavor full > cluster.yaml
 ```
 
 Apply the template
 
 ```bash
 kubectl apply -f cluster.yaml
- 
+
+clusterclass.cluster.x-k8s.io/vultr created
+kubeadmcontrolplanetemplate.controlplane.cluster.x-k8s.io/vultr-control-plane created
+kubeadmconfigtemplate.bootstrap.cluster.x-k8s.io/vultr-default-worker created
+vultrclustertemplate.infrastructure.cluster.x-k8s.io/vultr-infrastructure created
+vultrmachinetemplate.infrastructure.cluster.x-k8s.io/vultr-control-plane-machine created
+vultrmachinetemplate.infrastructure.cluster.x-k8s.io/vultr-default-worker-machine created
+configmap/vultr-capvultr-quickstart-ccm-manifests created
+configmap/vultr-capvultr-quickstart-csi-manifests created
+secret/vultr-capvultr-quickstart-ccm-secret created
+secret/vultr-capvultr-quickstart-csi-secret created
+helmchartproxy.addons.cluster.x-k8s.io/capvultr-quickstart-cilium created
+clusterresourceset.addons.cluster.x-k8s.io/capvultr-quickstart-ccm-manifests created
+clusterresourceset.addons.cluster.x-k8s.io/capvultr-quickstart-ccm-secret created
+clusterresourceset.addons.cluster.x-k8s.io/capvultr-quickstart-csi-manifests created
+clusterresourceset.addons.cluster.x-k8s.io/capvultr-quickstart-csi-secret created
 cluster.cluster.x-k8s.io/capvultr-quickstart created
-vultrcluster.infrastructure.cluster.x-k8s.io/capvultr-quickstart created
-kubeadmcontrolplane.controlplane.cluster.x-k8s.io/capvultr-quickstart-control-plane created
-vultrmachinetemplate.infrastructure.cluster.x-k8s.io/capvultr-quickstart-control-plane created
-machinedeployment.cluster.x-k8s.io/capvultr-quickstart-md-0 created
-vultrmachinetemplate.infrastructure.cluster.x-k8s.io/capvultr-quickstart-md-0 created
-kubeadmconfigtemplate.bootstrap.cluster.x-k8s.io/capvultr-quickstart-md-0 created
 
 ```
+
+The `ClusterClass` and the `*Template` objects are cluster independent, so a second cluster from
+the same flavor only adds its own `Cluster` and addons. The `Cluster` is what the topology
+controller expands into the control plane, machine deployments and infrastructure objects.
 
 You can see the workload cluster resources by using:
 
@@ -140,7 +197,9 @@ You can see the workload cluster resources by using:
 kubectl get cluster-api
 ```
 
-> Note: The control planes won’t be ready until you install the CNI and Vultr Cloud Controller Manager.
+> Note: The control planes won’t be ready until the CNI and the Vultr Cloud Controller Manager
+> are installed. The flavors listed above install both automatically; with the plain template
+> you install them yourself, as described further down.
 
 To verify that the first control plane is up, use:
 
@@ -167,6 +226,11 @@ capvultr-quickstart-control-plane-jsvrz   NotReady   control-plane   20m   v1.28
 capvultr-quickstart-md-0-b54j9-2szdn      NotReady   <none>          14m   v1.28.9
 capvultr-quickstart-md-0-b54j9-vb5tz      NotReady   <none>          14m   v1.28.9
 ```
+
+## Installing the CNI, CCM and CSI by hand
+
+The `cilium`, `vultr-ccm`, `vultr-csi`, `full` and the two bare metal flavors install these for
+you, so skip this section unless you used the plain template or want to bring your own.
 
 ### Deploy CNI
 

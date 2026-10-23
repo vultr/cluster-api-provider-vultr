@@ -16,6 +16,12 @@ The API itself is shared across multiple cloud providers allowing for true Vultr
 
 Check out the [Cluster API Quick Start](docs/getting-started.md) to create your first Kubernetes cluster.
 
+## Documentation
+
+- [Getting started](docs/getting-started.md), including the list of cluster template flavors
+- [Bare metal nodes](docs/bare-metal.md)
+- [Deploying with a custom registry](docs/deployment-with-custom-registry.md)
+
 ## Compatibility
 
 ### Cluster API Versions
