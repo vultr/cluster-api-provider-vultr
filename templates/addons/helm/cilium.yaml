@@ -10,7 +10,7 @@ spec:
   chartName: cilium
   releaseName: cilium
   namespace: kube-system
-  version: "1.17.0"
+  version: "1.20.3"
   options:
     wait: true
     waitForJobs: true
