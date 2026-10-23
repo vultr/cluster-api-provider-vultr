@@ -17,6 +17,22 @@ spec:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
         kind: VultrMachineTemplate
         name: vultr-control-plane-machine
+    # Replace a control plane machine whose node never appears or stays
+    # NotReady. KubeadmControlPlane still refuses anything that would break
+    # etcd quorum.
+    healthCheck:
+      checks:
+        nodeStartupTimeoutSeconds: 1200
+        unhealthyNodeConditions:
+        - type: Ready
+          status: Unknown
+          timeoutSeconds: 300
+        - type: Ready
+          status: "False"
+          timeoutSeconds: 300
+      remediation:
+        triggerIf:
+          unhealthyLessThanOrEqualTo: 100%
   infrastructure:
     templateRef:
       apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
@@ -35,6 +51,20 @@ spec:
           apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
           kind: VultrMachineTemplate
           name: vultr-default-worker-machine
+      # Replace a worker whose node never appears or stays NotReady.
+      healthCheck:
+        checks:
+          nodeStartupTimeoutSeconds: 600
+          unhealthyNodeConditions:
+          - type: Ready
+            status: Unknown
+            timeoutSeconds: 300
+          - type: Ready
+            status: "False"
+            timeoutSeconds: 300
+        remediation:
+          triggerIf:
+            unhealthyLessThanOrEqualTo: 100%
   variables:
   # Slot 0 of variables and of patches is the control plane. Flavors with a
   # different control plane kind (bare-metal-cp) replace that slot; everything
