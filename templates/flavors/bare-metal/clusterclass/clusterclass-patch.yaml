@@ -17,6 +17,20 @@
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
         kind: VultrBareMetalMachineTemplate
         name: vultr-bare-metal-worker-machine
+    # Bare metal servers take longer to provision and join.
+    healthCheck:
+      checks:
+        nodeStartupTimeoutSeconds: 1800
+        unhealthyNodeConditions:
+        - type: Ready
+          status: Unknown
+          timeoutSeconds: 300
+        - type: Ready
+          status: "False"
+          timeoutSeconds: 300
+      remediation:
+        triggerIf:
+          unhealthyLessThanOrEqualTo: 100%
 - op: add
   path: /spec/variables/-
   value:

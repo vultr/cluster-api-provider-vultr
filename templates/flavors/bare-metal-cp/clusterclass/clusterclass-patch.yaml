@@ -11,6 +11,9 @@
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
     kind: VultrBareMetalMachineTemplate
     name: vultr-bare-metal-control-plane-machine
+- op: replace
+  path: /spec/controlPlane/healthCheck/checks/nodeStartupTimeoutSeconds
+  value: 1800
 # Slot 0 is the control plane (see base/clusterclass.yaml); replace it with the bare metal one.
 - op: replace
   path: /spec/variables/0
